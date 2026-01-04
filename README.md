@@ -1,11 +1,52 @@
-<div align="center">
+# 绝区零 (ZZZ) 伤害计算器 & 配装优化器
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+一个基于 Web 的 React 工具，专为《绝区零》玩家设计，提供理论伤害计算、背包驱动盘组合优化以及直伤面板验证功能。
 
-  <h1>Built with AI Studio</h2>
+## 🌟 核心功能
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+1.  **理论计算 (Theoretical Mode)**
+    *   基于代理人（角色）和音擎（武器）的基础属性。
+    *   设定“副词条预算” (Substat Budget)，使用贪心算法自动分配最优副词条（攻、暴、穿等）。
+    *   计算理论最高期望伤害 (Ceiling DPS)。
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+2.  **库存模拟 (Inventory Mode)**
+    *   **核心功能**：支持导入或手动录入你的实际驱动盘（Disc）库存。
+    *   **算法**：使用回溯算法自动寻找库存中能组合出的最高伤害配装（Top 5 方案）。
+    *   支持 2件套/4件套效果自动计算。
 
-</div>
+3.  **直伤计算 (Raw Mode)**
+    *   直接输入游戏内的最终面板数值（如最终攻击、最终双暴）。
+    *   支持自定义技能倍率 (Motion Value)。
+    *   适用于快速验证战斗内 Buff 收益或对比不同面板。
+
+## 🛠️ 技术栈
+
+*   **Frontend**: React 18, TypeScript
+*   **Styling**: CSS Modules, Cyberpunk/Industrial UI (ZZZ Style)
+*   **Performance**: Web Worker 用于后台运行高强度的组合优化算法，避免阻塞主线程。
+
+## 🚀 快速开始
+
+1.  安装依赖:
+    ```bash
+    npm install
+    ```
+2.  启动开发服务器:
+    ```bash
+    npm run start
+    ```
+3.  构建生产版本:
+    ```bash
+    npm run build
+    ```
+
+## 📸 使用说明
+
+*   **添加数据**: 点击右上角的 `+ Custom` 可以临时添加自定义的角色或音擎数据。
+*   **切换语言**: 点击顶部的 `[CN]` / `[EN]` 按钮切换界面语言。
+*   **状态隔离**: 直伤模式的数据输入是独立的，不会因为切换到理论模式而丢失。
+
+## ⚠️ 注意事项
+
+*   本项目为粉丝自制工具，计算公式基于社区测绘，可能与实际游戏存在微小误差。
+*   JSON 导入格式请参考 `src/types.ts` 中的 `DiscItem` 接口定义。

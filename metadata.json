@@ -1,0 +1,5 @@
+{
+  "name": "CAL_V3",
+  "description": "A Zenless Zone Zero damage calculator and inventory optimizer with a specialized UI.",
+  "requestFramePermissions": []
+}
