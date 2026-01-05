@@ -1,7 +1,8 @@
 export type StatType = 
   | 'atk' | 'atk_' | 'def' | 'def_' | 'hp' | 'hp_' 
   | 'critRate' | 'critDmg' | 'pen' | 'pen_' 
-  | 'impact' | 'anomaly' | 'mastery' | 'elemental';
+  | 'impact' | 'anomaly' | 'mastery' | 'elemental'
+  | 'energy' | 'resReduction' | 'defReduction'; // Added for completeness
 
 export interface BaseStats {
   atkBase: number;
@@ -11,7 +12,8 @@ export interface BaseStats {
   critDmg: number;
   penFlat: number;
   penRatio: number;
-  defReduction: number; // New: Def Shred + Ignore Def %
+  defReduction: number; // Def Shred + Ignore Def %
+  resReduction: number; // Resist Shred %
   dmgBonus: number;
   def: number;
   hp: number;
@@ -43,6 +45,9 @@ export interface BuildResult {
   rank: number;
   dps: number;
   comboName: string;
+  // Added for Task 4: Detailed view
+  stats: BaseStats;
+  combo: DiscItem[];
 }
 
 export interface OptimizationResult {
@@ -51,8 +56,8 @@ export interface OptimizationResult {
   combo?: DiscItem[]; 
   topBuilds?: BuildResult[];
   description?: string;
-  // The actual skill multiplier (ratio) used for this calculation (e.g., 25.0 for 2500%)
   skillMultiplier?: number;
+  activeSetBonuses?: string[];
 }
 
 export interface AgentData {
@@ -64,7 +69,14 @@ export interface AgentData {
 export interface EngineData {
   id: string;
   name: { en: string; cn: string };
-  stats: Partial<BaseStats>;
+  stats: Partial<BaseStats>; // Includes Base ATK + Secondary Stat + Passive Buffs
+}
+
+export interface DiscSetData {
+  id: string; 
+  name: { en: string; cn: string };
+  stats2pc?: Partial<BaseStats>;
+  stats4pc?: Partial<BaseStats>;
 }
 
 export interface CustomSetData {
@@ -72,6 +84,13 @@ export interface CustomSetData {
   name: string;
   pieces2: { stat: StatType; value: number }[];
   pieces4: { stat: StatType; value: number }[];
+}
+
+// New Config for Theoretical Mode Main Stats
+export interface TheoreticalConfig {
+  slot4: StatType;
+  slot5: StatType;
+  slot6: StatType;
 }
 
 export type WorkerRequestType = 'CALCULATE_THEORETICAL' | 'OPTIMIZE_INVENTORY';
@@ -85,6 +104,7 @@ export interface WorkerRequest {
     inventory?: DiscItem[];
     constraint?: {
       substatBudget?: number;
+      theoreticalConfig?: TheoreticalConfig; // Added this
     };
   };
 }

@@ -1,4 +1,4 @@
-import { BaseStats, DiscItem, EnemyStats, OptimizationResult } from '../types';
+import { BaseStats, DiscItem, EnemyStats, OptimizationResult, TheoreticalConfig } from '../types';
 // Direct import to bypass Worker loading issues in this environment
 import { runInventoryOptimizer, runTheoreticalOptimizer } from '../workers/optimizer.worker';
 
@@ -8,11 +8,16 @@ class OptimizerService {
     console.log("OptimizerService initialized (Main Thread Mode)");
   }
 
-  public calculateTheoretical(stats: BaseStats, enemy: EnemyStats, budget: number = 25): Promise<OptimizationResult> {
+  public calculateTheoretical(
+    stats: BaseStats, 
+    enemy: EnemyStats, 
+    budget: number = 25, 
+    config?: TheoreticalConfig // Updated
+  ): Promise<OptimizationResult> {
     return new Promise((resolve) => {
       setTimeout(() => {
-        // Pass the budget to the function
-        const result = runTheoreticalOptimizer(stats, enemy, budget);
+        // Pass the config to the worker function
+        const result = runTheoreticalOptimizer(stats, enemy, budget, config);
         resolve(result);
       }, 50);
     });

@@ -1,30 +1,70 @@
 import React, { useState } from 'react';
 import { ZZZCard } from '../ui/ZZZCard';
-import { OptimizationResult, EnemyStats } from '../../types';
+import { OptimizationResult, EnemyStats, BuildResult } from '../../types';
 import { useLanguage } from '../../locales';
 import { FormulaModal } from '../modals/FormulaModal';
+import { BuildDetailsModal } from '../modals/BuildDetailsModal';
+import { DISC_SETS } from '../../data';
 
 interface ResultDashboardProps {
   theoretical: OptimizationResult | null;
   inventoryResult: OptimizationResult | null;
   isCalculating: boolean;
-  enemy: EnemyStats; // Changed from optional to required to ensure modal works
+  enemy: EnemyStats; 
 }
 
 export const ResultDashboard: React.FC<ResultDashboardProps> = ({ theoretical, inventoryResult, isCalculating, enemy }) => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [showFormula, setShowFormula] = useState(false);
+  const [selectedBuild, setSelectedBuild] = useState<BuildResult | null>(null);
 
   // Determine which result to show details for
   const activeResult = inventoryResult || theoretical;
 
   const handleOpenFormula = () => {
     if (activeResult && enemy) {
-      console.log('Opening Formula Modal', { activeResult, enemy });
       setShowFormula(true);
-    } else {
-        console.warn('Cannot open modal: missing result or enemy data');
     }
+  };
+
+  const handleBuildClick = (build: BuildResult) => {
+    if (build.stats && build.combo) {
+        setSelectedBuild(build);
+    }
+  };
+
+  // Task 2: Render Set Names strictly in Current Language, vertically stacked if mixed.
+  const renderSetCombo = (comboName: string) => {
+      // Check if it matches ID:Count format from worker
+      if (comboName.includes(':')) {
+           const parts = comboName.split(' + ');
+           return (
+             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: '1.2' }}>
+               {parts.map((part, idx) => {
+                   const [id, count] = part.split(':');
+                   let displayName = id;
+                   
+                   const stdSet = DISC_SETS.find(s => s.id === id);
+                   if (stdSet) {
+                     displayName = stdSet.name[lang];
+                   } else if (id === 'Rainbow') {
+                     displayName = t('rainbow_set');
+                   }
+
+                   // If it's Rainbow:0, don't show (0)
+                   const suffix = (id === 'Rainbow' && count === '0') ? '' : ` (${count})`;
+                   
+                   return (
+                     <div key={idx}>
+                       {displayName}{suffix}
+                     </div>
+                   );
+               })}
+             </div>
+           );
+      }
+      // Fallback for raw text
+      return comboName; 
   };
 
   return (
@@ -35,12 +75,12 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({ theoretical, i
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '12px', border: '1px solid var(--zzz-border)', background: 'var(--zzz-black)'
       }}>
-        <span style={{ color: 'var(--zzz-light-grey)', fontSize: '0.8rem' }}>SYSTEM_STATUS</span>
+        <span style={{ color: 'var(--zzz-light-grey)', fontSize: '0.8rem' }}>{t('system_status')}</span>
         <span style={{ 
           color: isCalculating ? 'var(--zzz-yellow)' : 'var(--zzz-cyan)', 
           fontWeight: 'bold', animation: isCalculating ? 'glitch-anim-1 1s infinite' : 'none'
         }}>
-          {isCalculating ? 'PROCESSING...' : 'READY'}
+          {isCalculating ? t('processing') : t('ready')}
         </span>
       </div>
 
@@ -113,21 +153,39 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({ theoretical, i
                   {inventoryResult.topBuilds.map((build, i) => {
                     const widthPercent = (build.dps / inventoryResult.dps) * 100;
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', fontSize: '0.8rem' }}>
-                        <div style={{ width: '20px', color: 'var(--zzz-light-grey)' }}>#{build.rank}</div>
-                        <div style={{ flex: 1, marginRight: '12px' }}>
-                          <div style={{ 
-                            height: '24px', 
-                            width: `${widthPercent}%`, 
-                            background: i === 0 ? 'var(--zzz-yellow)' : 'var(--zzz-light-grey)',
-                            display: 'flex', alignItems: 'center', paddingLeft: '8px',
-                            color: 'var(--zzz-black)', fontWeight: 'bold'
-                          }}>
-                            {Math.round(build.dps).toLocaleString()}
-                          </div>
+                      <div 
+                        key={i} 
+                        onClick={() => handleBuildClick(build)} 
+                        style={{ 
+                            display: 'flex', alignItems: 'center', fontSize: '0.8rem', cursor: 'pointer',
+                            padding: '6px', borderRadius: '4px',
+                            transition: 'background 0.2s',
+                            justifyContent: 'space-between'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        {/* Rank & Bar Section */}
+                        <div style={{ display: 'flex', alignItems: 'center', flex: 1, marginRight: '16px' }}>
+                            <div style={{ width: '20px', color: 'var(--zzz-light-grey)' }}>#{build.rank}</div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ 
+                                    height: '24px', 
+                                    width: `${widthPercent}%`, 
+                                    minWidth: '100px', // Ensure text fits
+                                    background: i === 0 ? 'var(--zzz-yellow)' : 'var(--zzz-light-grey)',
+                                    display: 'flex', alignItems: 'center', paddingLeft: '8px',
+                                    color: 'var(--zzz-black)', fontWeight: 'bold',
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    {Math.round(build.dps).toLocaleString()}
+                                </div>
+                            </div>
                         </div>
-                        <div style={{ color: 'var(--zzz-white)', width: '150px', textAlign: 'right', fontSize: '0.75rem' }}>
-                          {build.comboName}
+
+                        {/* Set Name Section (Aligned Right, Stacked if mixed) */}
+                        <div style={{ color: 'var(--zzz-white)', textAlign: 'right', fontSize: '0.75rem' }}>
+                          {renderSetCombo(build.comboName)}
                         </div>
                       </div>
                     );
@@ -147,6 +205,17 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({ theoretical, i
           result={activeResult}
           enemy={enemy}
         />
+      )}
+
+      {/* Task 4: Detailed Build Modal */}
+      {selectedBuild && enemy && (
+          <BuildDetailsModal 
+            visible={!!selectedBuild}
+            onClose={() => setSelectedBuild(null)}
+            build={selectedBuild}
+            enemy={enemy}
+            skillMultiplier={activeResult?.skillMultiplier || 25}
+          />
       )}
 
     </div>

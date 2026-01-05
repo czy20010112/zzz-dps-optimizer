@@ -44,16 +44,15 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
     return value ? `${label} (+${value})` : label;
   };
 
+  // Task 2: Strict Single Language Support for Sets
   const getLocalizedSetName = (setId: string) => {
-    // Try to find in standard DB first
     const stdSet = DISC_SETS.find(s => s.id === setId);
     if (stdSet) return stdSet.name[lang];
     
-    // Then try custom sets (assuming custom sets store raw name)
+    // Custom set fallback
     const customSet = customSets.find(s => s.name === setId);
     if (customSet) return customSet.name;
 
-    // Fallback to ID
     return setId;
   };
 
@@ -72,18 +71,45 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
     }
   };
 
+  const handleExport = () => {
+    const dataStr = JSON.stringify(inventory, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `zzz_inventory_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleAddDisc = (newItem: DiscItem) => {
     setInventory([...inventory, newItem]);
     setShowAddModal(false);
   };
 
+  const jsonPlaceholder = `[
+  {
+    "id": "demo-disc-1",
+    "slot": 4,
+    "set": "Woodpecker",
+    "mainStat": "critRate",
+    "subStats": [
+      { "stat": "critDmg", "value": 9.6 },
+      { "stat": "atk_", "value": 9.0 }
+    ]
+  }
+]`;
+
   return (
     <>
       <ZZZCard title={`${t('disk_storage')} [${inventory.length}]`}>
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        {/* Task 1: Single Row Layout for Actions */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
           <ZZZButton onClick={() => setShowAddModal(true)}>{t('add_disk')}</ZZZButton>
-          <ZZZButton onClick={() => setShowImportModal(true)} variant="secondary">{t('import_json')}</ZZZButton>
-          <ZZZButton onClick={() => setInventory([])} variant="danger" style={{ marginLeft: 'auto' }}>{t('purge')}</ZZZButton>
+          <ZZZButton onClick={() => setShowImportModal(true)} variant="secondary">{t('import')}</ZZZButton>
+          <ZZZButton onClick={handleExport} variant="secondary">{t('export')}</ZZZButton>
+          <ZZZButton onClick={() => setInventory([])} variant="danger">{t('purge')}</ZZZButton>
         </div>
         
         {/* Grid Layout View */}
@@ -106,19 +132,29 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
                     }}>
                         #{item.slot}
                     </div>
-                    <div style={{ color: 'var(--zzz-white)', fontWeight: 'bold', marginBottom: '4px', fontSize: '0.9rem' }}>
+                    <div style={{ color: 'var(--zzz-white)', fontWeight: 'bold', marginBottom: '4px', fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {getLocalizedSetName(item.set)}
                     </div>
-                    <div style={{ color: 'var(--zzz-cyan)', fontSize: '0.85rem', marginBottom: '8px', fontWeight: 'bold' }}>
+                    <div style={{ color: 'var(--zzz-cyan)', fontSize: '0.8rem', marginBottom: '8px', fontWeight: 'bold' }}>
                         {getStatDisplay(item.mainStat)}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--zzz-light-grey)' }}>
-                        {item.subStats.map((s, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>{t(`stat_${s.stat}`) || s.stat}</span>
-                                <span>{s.value}</span>
-                            </div>
-                        ))}
+                    
+                    {/* Fixed Height for Substats (Always 4 lines) */}
+                    <div style={{ fontSize: '0.75rem', color: 'var(--zzz-light-grey)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        {Array.from({ length: 4 }).map((_, idx) => {
+                            const s = item.subStats[idx];
+                            if (s) {
+                                return (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>{t(`stat_${s.stat}`) || s.stat}</span>
+                                        <span style={{color: 'var(--zzz-white)'}}>{s.value}</span>
+                                    </div>
+                                );
+                            } else {
+                                // Placeholder slot to maintain height
+                                return <div key={idx} style={{ height: '1.1em' }}></div>;
+                            }
+                        })}
                     </div>
                 </div>
             ))}
@@ -149,17 +185,18 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
           }}>
             <h3 style={{ color: 'var(--zzz-white)', marginTop: 0 }}>{t('import_json')}</h3>
             <textarea 
-              value={jsonInput}
+              defaultValue={jsonPlaceholder}
               onChange={(e) => setJsonInput(e.target.value)}
               style={{
                 width: '100%', height: '200px', background: 'var(--zzz-black)', 
                 color: 'var(--zzz-yellow)', border: '1px solid var(--zzz-border)',
-                marginBottom: '16px', fontFamily: 'monospace', padding: '10px'
+                marginBottom: '16px', fontFamily: 'monospace', padding: '10px',
+                whiteSpace: 'pre', boxSizing: 'border-box'
               }}
             />
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-               <ZZZButton onClick={() => setShowImportModal(false)} variant="secondary">{t('cancel')}</ZZZButton>
-               <ZZZButton onClick={handleImport}>{t('parse')}</ZZZButton>
+               <ZZZButton onClick={() => setShowImportModal(false)} variant="secondary" style={{ flex: 1 }}>{t('cancel')}</ZZZButton>
+               <ZZZButton onClick={handleImport} style={{ flex: 1 }}>{t('parse')}</ZZZButton>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ZZZButton } from '../ui/ZZZButton';
 import { ZZZSelect } from '../ui/ZZZSelect';
 import { DiscItem, StatType } from '../../types';
@@ -39,6 +39,16 @@ export const AddDiscModal: React.FC<AddDiscModalProps> = ({ onClose, onConfirm, 
     { stat: 'pen', value: '' },
   ]);
 
+  // Task 2: Update Main Stat when Slot changes
+  useEffect(() => {
+    if (slot === 1) setMainStat('hp');
+    else if (slot === 2) setMainStat('atk');
+    else if (slot === 3) setMainStat('def');
+    else if (slot === 4) setMainStat('critRate');
+    else if (slot === 5) setMainStat('elemental');
+    else if (slot === 6) setMainStat('atk_');
+  }, [slot]);
+
   // Localized Labels
   const getLabel = (key: string) => {
     const map: Record<string, string> = {
@@ -55,20 +65,34 @@ export const AddDiscModal: React.FC<AddDiscModalProps> = ({ onClose, onConfirm, 
       'elemental': lang === 'cn' ? '属性伤害' : 'Elem DMG',
       'impact': lang === 'cn' ? '冲击力' : 'Impact',
       'mastery': lang === 'cn' ? '异常精通' : 'Mastery',
+      'energy': lang === 'cn' ? '能量自动回复' : 'Energy Regen',
+      'anomaly': lang === 'cn' ? '异常精通' : 'Anomaly Prof', // Usually 'anomaly' in data types means Prof
     };
     return map[key] || key;
   };
 
-  const statOptions = [
+  // Full list for Substats
+  const allStats = [
     'atk', 'atk_', 'critRate', 'critDmg', 'pen', 'pen_', 
     'elemental', 'hp', 'hp_', 'def', 'def_', 'impact', 'mastery'
-  ].map(k => ({ label: getLabel(k), value: k }));
+  ];
+
+  // Task 2: Filter Main Stats based on Slot
+  const getMainStatOptions = () => {
+    let validKeys: string[] = [];
+    if (slot === 1) validKeys = ['hp'];
+    else if (slot === 2) validKeys = ['atk'];
+    else if (slot === 3) validKeys = ['def'];
+    else if (slot === 4) validKeys = ['critRate', 'critDmg', 'atk_', 'anomaly', 'def_', 'hp_'];
+    else if (slot === 5) validKeys = ['elemental', 'pen_', 'atk_', 'def_', 'hp_'];
+    else if (slot === 6) validKeys = ['atk_', 'impact', 'mastery', 'energy', 'def_', 'hp_'];
+
+    return validKeys.map(k => ({ label: getLabel(k), value: k }));
+  };
 
   const handleSlotChange = (newSlot: number) => {
     setSlot(newSlot);
-    if (newSlot === 1) setMainStat('hp');
-    else if (newSlot === 2) setMainStat('atk');
-    else if (newSlot === 3) setMainStat('def');
+    // Main stat update is handled by useEffect
   };
 
   const handleConfirm = () => {
@@ -133,7 +157,7 @@ export const AddDiscModal: React.FC<AddDiscModalProps> = ({ onClose, onConfirm, 
                 cursor: slot <= 3 ? 'not-allowed' : 'pointer'
               }}
            >
-             {statOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+             {getMainStatOptions().map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
            </select>
         </div>
 
@@ -151,7 +175,7 @@ export const AddDiscModal: React.FC<AddDiscModalProps> = ({ onClose, onConfirm, 
                     }}
                     style={selectStyle}
                  >
-                   {statOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                   {allStats.map(k => <option key={k} value={k}>{getLabel(k)}</option>)}
                  </select>
                  <input 
                     type="number"

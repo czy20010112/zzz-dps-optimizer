@@ -28,12 +28,21 @@ export const translations: Translations = {
     'stun_mult': 'Stun Mult. %',
     'substat_budget': 'Substat Budget (Rolls)',
     
+    // Config
+    'set_bonuses': 'SET BONUSES',
+    'slot_4': 'IV (4)',
+    'slot_5': 'V (5)',
+    'slot_6': 'VI (6)',
+    'main_stat_fixed': 'Fixed Main Stats (1-3)',
+    'main_stat_selected': 'Selected (4-6)',
+    'incl_slot_2': 'Incl. Slot 2 + Main',
+
     // Raw Mode Labels
     'final_atk': 'Final ATK',
     'final_crit_rate': 'Final Crit Rate %',
     'final_crit_dmg': 'Final Crit DMG %',
     'final_pen': 'Final Pen (Flat)',
-    'panel_stats': 'PANEL STATS // 手动面板',
+    'panel_stats': 'PANEL STATS',
     
     // Stats
     'stat_atk': 'ATK (Flat)',
@@ -50,32 +59,34 @@ export const translations: Translations = {
     'stat_impact': 'Impact',
     'stat_mastery': 'Mastery',
     'stat_energy': 'Energy Regen',
+    'stat_anomaly': 'Anomaly Prof.',
 
     // Titles
-    'agent_specs': 'Agent Specs // 改装工坊',
-    'target_analysis': 'Target Analysis // 目标分析',
-    'disk_storage': 'Disk Storage // 库存',
+    'agent_specs': 'Agent Specs',
+    'target_analysis': 'Target Analysis',
+    'disk_storage': 'Disc Storage',
     'manual_input': 'Manual Input',
     'import_json': 'Import JSON',
     'custom_data': 'Custom Data',
     
     // Buttons
-    'import': 'Import JSON',
-    'export': 'Export JSON',
-    'purge': 'Purge All',
+    'import': 'Import',
+    'export': 'Export',
+    'purge': 'Purge',
     'add_disk': 'Add Disc',
     'cancel': 'Cancel',
     'confirm': 'Confirm',
     'parse': 'Parse & Load',
     'add_custom': '+ Custom',
     'initiate_sim': 'INITIATE SIMULATION',
+    'view_edit': 'VIEW / EDIT',
     
     // Modes
     'mode_theoretical': 'Theoretical',
     'mode_inventory': 'Inventory',
     'mode_raw': 'Raw / Direct',
     
-    // Results
+    // Results & Modals
     'max_dps': 'THEORETICAL MAX DPS',
     'effective_stats': 'EFFECTIVE STATS',
     'config': 'CONFIG',
@@ -83,13 +94,24 @@ export const translations: Translations = {
     'rank': 'RANK',
     'damage': 'DAMAGE',
     'build': 'BUILD',
+    
+    'build_details': 'Build Details',
+    'damage_formula': 'Damage Formula',
+    'equipped_discs': 'Equipped Discs',
+    'best_build': 'Best Build',
+    'rainbow_set': 'Rainbow Set',
+    'expected_dps': 'Expected DPS',
+    'close_details': 'Close Details',
+    'system_status': 'SYSTEM STATUS',
+    'processing': 'PROCESSING...',
+    'ready': 'READY',
   },
   cn: {
     // Labels
-    'agent': '代理人 (Agent)',
-    'w_engine': '音擎 (W-Engine)',
-    'base_atk': '基础攻击 (Base ATK)',
-    'flat_atk': '小攻击 (Flat ATK)',
+    'agent': '代理人',
+    'w_engine': '音擎',
+    'base_atk': '基础攻击',
+    'flat_atk': '小攻击 (Flat)',
     'atk_percent': '攻击力 %',
     'dmg_bonus': '伤害加成 %',
     'crit_rate': '暴击率 %',
@@ -103,12 +125,21 @@ export const translations: Translations = {
     'stun_mult': '失衡倍率 %',
     'substat_budget': '副词条预算 (词条数)',
 
+    // Config
+    'set_bonuses': '套装效果',
+    'slot_4': 'IV (4号位)',
+    'slot_5': 'V (5号位)',
+    'slot_6': 'VI (6号位)',
+    'main_stat_fixed': '包含固定主属性 (1-3)',
+    'main_stat_selected': '自选主属性 (4-6)',
+    'incl_slot_2': '含2号位+主词条',
+
     // Raw Mode Labels
-    'final_atk': '最终攻击力 (Final ATK)',
+    'final_atk': '最终攻击力',
     'final_crit_rate': '最终暴击率 %',
     'final_crit_dmg': '最终暴击伤害 %',
     'final_pen': '最终穿透值 (Flat)',
-    'panel_stats': '面板数据 // PANEL STATS',
+    'panel_stats': '面板数据',
 
     // Stats
     'stat_atk': '固定攻击',
@@ -125,25 +156,27 @@ export const translations: Translations = {
     'stat_impact': '冲击力',
     'stat_mastery': '异常精通',
     'stat_energy': '能量自动回复',
+    'stat_anomaly': '异常精通',
 
     // Titles
-    'agent_specs': '代理人规格 // 改装工坊',
-    'target_analysis': '目标分析 // 战斗环境',
-    'disk_storage': '驱动盘库存 // Storage',
+    'agent_specs': '代理人规格',
+    'target_analysis': '目标分析',
+    'disk_storage': '驱动盘库存',
     'manual_input': '手动录入',
     'import_json': '导入 JSON',
     'custom_data': '自定义数据',
 
     // Buttons
-    'import': '导入数据',
-    'export': '导出数据',
-    'purge': '清空库存',
-    'add_disk': '添加驱动盘',
+    'import': '导入',
+    'export': '导出',
+    'purge': '清空',
+    'add_disk': '添加',
     'cancel': '取消',
     'confirm': '确认',
     'parse': '解析并加载',
     'add_custom': '+ 自定义',
     'initiate_sim': '开始代理',
+    'view_edit': '查看 / 编辑',
 
     // Modes
     'mode_theoretical': '理论计算',
@@ -151,13 +184,24 @@ export const translations: Translations = {
     'mode_raw': '直伤计算',
     
     // Results
-    'max_dps': '理论最高期望 (MAX DPS)',
+    'max_dps': '理论最高期望',
     'effective_stats': '最终面板',
     'config': '配置详情',
     'skill_mult': '技能倍率',
     'rank': '排名',
     'damage': '期望伤害',
     'build': '配装方案',
+
+    'build_details': '配装方案详情',
+    'damage_formula': '伤害计算公式',
+    'equipped_discs': '已装备驱动盘',
+    'best_build': '最佳配置',
+    'rainbow_set': '散件混搭',
+    'expected_dps': '期望伤害',
+    'close_details': '关闭详情',
+    'system_status': '系统状态',
+    'processing': '计算中...',
+    'ready': '就绪',
   }
 };
 

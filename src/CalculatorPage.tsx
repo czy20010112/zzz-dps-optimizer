@@ -5,7 +5,7 @@ import { InventoryManager } from './components/Features/InventoryManager';
 import { ResultDashboard } from './components/Features/ResultDashboard';
 import { CustomDataModal } from './components/modals/CustomDataModal';
 import { ZZZButton } from './components/ui/ZZZButton';
-import { BaseStats, EnemyStats, DiscItem, OptimizationResult, AgentData, EngineData, CustomSetData, AppMode } from './types';
+import { BaseStats, EnemyStats, DiscItem, OptimizationResult, AgentData, EngineData, CustomSetData, AppMode, TheoreticalConfig } from './types';
 import { optimizerService } from './services/optimizer.service';
 import { useLanguage } from './locales';
 
@@ -17,7 +17,8 @@ const initialStats: BaseStats = {
   critDmg: 50,
   penFlat: 0,
   penRatio: 0,
-  defReduction: 0, // Initialize
+  defReduction: 0, 
+  resReduction: 0, // Initialize
   dmgBonus: 0,
   def: 600,
   hp: 10000,
@@ -34,35 +35,47 @@ const initialEnemy: EnemyStats = {
   level: 50
 };
 
+// Task 4: Default Theoretical Config
+const initialTheoreticalConfig: TheoreticalConfig = {
+  slot4: 'critDmg',
+  slot5: 'elemental',
+  slot6: 'atk_'
+};
+
 export const CalculatorPage: React.FC = () => {
   const { t } = useLanguage();
   
   // --- STATE ISOLATION ---
-  // State 1: Scenario Stats (For Theoretical & Inventory modes - based on Agent/Engine)
   const [scenarioStats, setScenarioStats] = useState<BaseStats>(initialStats);
-  
-  // State 2: Raw Stats (For Raw Mode - based on Manual Input)
   const [rawStats, setRawStats] = useState<BaseStats>({ ...initialStats });
-
   const [enemy, setEnemy] = useState<EnemyStats>(initialEnemy);
   const [inventory, setInventory] = useState<DiscItem[]>([]);
   
   const [mode, setMode] = useState<AppMode>('inventory');
-  const [budget, setBudget] = useState(45); // Default budget
-  const [skillMultiplier, setSkillMultiplier] = useState(2500); // Default 2500%
+  const [budget, setBudget] = useState(45); 
+  const [skillMultiplier, setSkillMultiplier] = useState(2500); 
+
+  // Task 4: Selection State Decoupling
+  const [scenarioSelection, setScenarioSelection] = useState<{agent: string, engine: string}>({ agent: '', engine: '' });
+  const [rawSelection, setRawSelection] = useState<{agent: string, engine: string}>({ agent: '', engine: '' });
+
+  // Task 4 State
+  const [theoreticalConfig, setTheoreticalConfig] = useState<TheoreticalConfig>(initialTheoreticalConfig);
 
   // Custom Data Management
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customAgents, setCustomAgents] = useState<AgentData[]>([]);
   const [customEngines, setCustomEngines] = useState<EngineData[]>([]);
   const [customSets, setCustomSets] = useState<CustomSetData[]>([]);
+  // Task 3: Edit State
+  const [editingAgent, setEditingAgent] = useState<AgentData | null>(null);
 
   const [theoreticalResult, setTheoreticalResult] = useState<OptimizationResult | null>(null);
   const [inventoryResult, setInventoryResult] = useState<OptimizationResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  // Helper to get active stats based on mode
   const activeStats = mode === 'raw' ? rawStats : scenarioStats;
+  
   const setActiveStats = (newStats: BaseStats) => {
     if (mode === 'raw') {
       setRawStats(newStats);
@@ -71,39 +84,54 @@ export const CalculatorPage: React.FC = () => {
     }
   };
 
+  const handleEditAgent = (agent: AgentData) => {
+    setEditingAgent(agent);
+    setShowCustomModal(true);
+  };
+
+  const handleSaveAgent = (updatedAgent: AgentData) => {
+    // Check if updating existing
+    const idx = customAgents.findIndex(a => a.id === updatedAgent.id);
+    if (idx >= 0) {
+      const newAgents = [...customAgents];
+      newAgents[idx] = updatedAgent;
+      setCustomAgents(newAgents);
+    } else {
+      setCustomAgents([...customAgents, updatedAgent]);
+    }
+    setEditingAgent(null); // Clear edit state
+  };
+
   const handleCalculate = async () => {
     setIsCalculating(true);
     try {
       if (mode === 'theoretical') {
-        // CRITICAL FIX: Explicitly clear inventory result to prevent display priority conflict
         setInventoryResult(null); 
         setTheoreticalResult(null);
         
-        // Inject skill multiplier to scenario stats
         const requestStats = { ...scenarioStats, skillMultiplier };
-        const tResult = await optimizerService.calculateTheoretical(requestStats, enemy, budget); 
+        // Task 4: Pass theoreticalConfig
+        const tResult = await optimizerService.calculateTheoretical(requestStats, enemy, budget, theoreticalConfig); 
         setTheoreticalResult(tResult);
 
       } else if (mode === 'raw') {
-        // CRITICAL FIX: Explicitly clear inventory result to prevent display priority conflict
         setInventoryResult(null);
         setTheoreticalResult(null);
 
-        // RAW MODE DATA CLEANING (Fix 1+111% Bug)
-        // We use rawStats directly as the source of truth
         const cleanRawStats: BaseStats = {
-            ...initialStats, // Reset everything to 0/default first
-            atkBase: rawStats.atkBase,      // Mapped from "Panel ATK"
-            atkPercent: rawStats.atkPercent,// Mapped from "In-battle ATK%"
-            atkFlat: rawStats.atkFlat,      // Mapped from "In-battle Flat"
+            ...initialStats, 
+            atkBase: rawStats.atkBase,      
+            atkPercent: rawStats.atkPercent,
+            atkFlat: rawStats.atkFlat,      
             critRate: rawStats.critRate,
             critDmg: rawStats.critDmg,
             dmgBonus: rawStats.dmgBonus,
             penFlat: rawStats.penFlat,
             penRatio: rawStats.penRatio,
-            defReduction: rawStats.defReduction, // Mapped for Def Shred
-            def: rawStats.def, // Preserve DEF just in case
-            skillMultiplier: skillMultiplier // Pass the custom multiplier
+            defReduction: rawStats.defReduction, 
+            resReduction: rawStats.resReduction, 
+            def: rawStats.def, 
+            skillMultiplier: skillMultiplier 
         };
 
         const tResult = await optimizerService.calculateTheoretical(cleanRawStats, enemy, 0); 
@@ -112,7 +140,6 @@ export const CalculatorPage: React.FC = () => {
 
       } else {
         // Inventory Mode
-        // CRITICAL FIX: Explicitly clear theoretical result
         setTheoreticalResult(null);
         setInventoryResult(null);
 
@@ -147,13 +174,19 @@ export const CalculatorPage: React.FC = () => {
             setEnemy={setEnemy}
             mode={mode}
             setMode={setMode}
-            onOpenCustomModal={() => setShowCustomModal(true)}
+            onOpenCustomModal={() => { setEditingAgent(null); setShowCustomModal(true); }}
+            onEditCustomAgent={handleEditAgent}
             customAgents={customAgents}
             customEngines={customEngines}
             budget={budget}
             setBudget={setBudget}
             skillMultiplier={skillMultiplier}
             setSkillMultiplier={setSkillMultiplier}
+            theoreticalConfig={theoreticalConfig}
+            setTheoreticalConfig={setTheoreticalConfig}
+            // New Selection Props
+            currentSelection={mode === 'raw' ? rawSelection : scenarioSelection}
+            setSelection={mode === 'raw' ? setRawSelection : setScenarioSelection}
           />
           
           {mode === 'inventory' && (
@@ -185,13 +218,13 @@ export const CalculatorPage: React.FC = () => {
 
       </div>
 
-      {/* Global Custom Data Modal */}
       {showCustomModal && (
         <CustomDataModal 
            onClose={() => setShowCustomModal(false)}
-           onSaveAgent={(a) => setCustomAgents([...customAgents, a])}
+           onSaveAgent={handleSaveAgent}
            onSaveEngine={(e) => setCustomEngines([...customEngines, e])}
            onSaveSet={(s) => setCustomSets([...customSets, s])}
+           initialData={editingAgent} // Pass data for editing
         />
       )}
 
