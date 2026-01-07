@@ -42,7 +42,7 @@
 **目前部分复杂的套装效果和命座仅作为静态 Buff 处理，未来计划支持更复杂的条件触发逻辑。**
    
 ## 🚀 快速开始
-仅使用https://zzz-damage-optimizer-web.vercel.app/ ，不定期会更新到最新。
+仅使用请访问：https://zzz-dps-optimizer.pages.dev/
 1.  安装依赖:
     ```bash
     npm install
