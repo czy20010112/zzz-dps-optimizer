@@ -2,7 +2,6 @@ import React from 'react';
 import { BaseStats, EnemyStats, OptimizationResult } from '../../types';
 import { ZZZButton } from '../ui/ZZZButton';
 import { useLanguage } from '../../locales';
-import { DISC_SETS } from '../../data';
 
 interface FormulaModalProps {
   visible: boolean;
@@ -59,18 +58,6 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ visible, onClose, re
   // Check if theoretical mode active set bonuses contain info
   const isTheoretical = result.activeSetBonuses?.some(s => s.startsWith('Theoretical'));
 
-  // Task 2: Format Set Names (ID:Count -> CN/EN)
-  const formattedSetBonuses = result.activeSetBonuses?.map(str => {
-      if (str.includes(':')) {
-          const [id, count] = str.split(':');
-          const stdSet = DISC_SETS.find(s => s.id === id);
-          if (stdSet) {
-              return `${stdSet.name.cn} / ${stdSet.name.en} (${count})`;
-          }
-      }
-      return str;
-  });
-
   return (
     <div style={modalOverlayStyle}>
       <div style={modalContentStyle}>
@@ -83,7 +70,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ visible, onClose, re
           display: 'flex', justifyContent: 'space-between', alignItems: 'center'
         }}>
           <h2 style={{ margin: 0, color: 'var(--zzz-white)', textTransform: 'uppercase', fontStyle: 'italic' }}>
-            {t('damage_formula')} // FORMULA
+            伤害计算详情 // FORMULA
           </h2>
           <div style={{ color: 'var(--zzz-yellow)', fontWeight: 'bold', fontSize: '1.2rem' }}>
             {Math.round(result.dps).toLocaleString()}
@@ -143,7 +130,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ visible, onClose, re
           />
 
           {/* Set Bonuses Row */}
-          {formattedSetBonuses && formattedSetBonuses.length > 0 && (
+          {result.activeSetBonuses && result.activeSetBonuses.length > 0 && (
               <div style={{ 
                 background: 'var(--zzz-dark-grey)', padding: '10px', 
                 borderLeft: '4px solid var(--zzz-cyan)', marginBottom: '8px' 
@@ -151,7 +138,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ visible, onClose, re
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontWeight: 'bold', color: 'var(--zzz-cyan)', fontSize: '0.9rem' }}>{t('set_bonuses')} / CONFIG</span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--zzz-white)', marginTop: '4px' }}>
-                    {formattedSetBonuses.join(' + ')}
+                    {result.activeSetBonuses.join(' + ')}
                   </span>
                   {isTheoretical && (
                     <span style={{ fontSize: '0.7rem', color: 'var(--zzz-light-grey)', marginTop: '2px' }}>

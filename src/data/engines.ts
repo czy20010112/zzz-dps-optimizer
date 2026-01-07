@@ -37,5 +37,15 @@ export const ENGINES_DB: EngineData[] = [
     name: { en: 'Restrained (S)', cn: '拘缚者 (S)' },
     // Base: 684, Sub: 12% Impact. Passive: Dmg +20% per stack from Basic Atk... approx.
     stats: { atkBase: 684, impact: 12, dmgBonus: 20 }
+  },
+  {
+      id: 'cloud_mirage',
+      name: { en: 'Cloud Mirage (1 Star)', cn: '云霓孤光 (1星)' },
+      stats: {
+          atkBase: 743,
+          critDmg: 73,
+          dmgBonus: 25,
+          resReduction: 20
+      }
   }
 ];

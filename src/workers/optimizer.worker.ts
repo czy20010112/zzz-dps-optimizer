@@ -1,95 +1,30 @@
-import { BaseStats, DiscItem, EnemyStats, OptimizationResult, StatType, BuildResult, TheoreticalConfig, DiscSetData } from '../types';
-import { DISC_SETS } from '../data/disc_sets'; // Import static data
+import { BaseStats, DiscItem, EnemyStats, OptimizationResult, BuildResult, TheoreticalConfig } from '../types';
+import { DISC_SETS } from '../data/disc_sets';
+import { addStat, applyItemStats, applySetBonuses, MAIN_STAT_VALUES } from '../utils/statCalculator';
 
-// --- Core Logic ---
-const addStat = (stats: BaseStats, statType: StatType, value: number) => {
-  switch (statType) {
-    case 'atk': stats.atkFlat += value; break;
-    case 'atk_': stats.atkPercent += value; break;
-    case 'def': stats.def += value; break;
-    case 'def_': stats.def += (stats.def * (value/100)); break; 
-    case 'hp': stats.hp += value; break;
-    case 'hp_': stats.hp += (stats.hp * (value/100)); break;
-    case 'critRate': stats.critRate += value; break;
-    case 'critDmg': stats.critDmg += value; break;
-    case 'pen': stats.penFlat += value; break;
-    case 'pen_': stats.penRatio += value; break;
-    case 'elemental': stats.dmgBonus += value; break;
-    case 'impact': stats.impact += value; break;
-    case 'mastery': stats.anomalyMastery += value; break;
-    case 'anomaly': stats.anomalyProficiency += value; break;
-    case 'resReduction': stats.resReduction += value; break;
-    case 'defReduction': stats.defReduction += value; break;
-    case 'energy': break; 
-  }
-};
-
-const applyItemStats = (base: BaseStats, items: DiscItem[]): BaseStats => {
-  const newStats = { ...base };
-  items.forEach(item => {
-    item.subStats.forEach(sub => {
-      addStat(newStats, sub.stat, sub.value);
-    });
-  });
-  return newStats;
-};
-
-// --- New Helper: Apply Set Bonuses ---
-const applySetBonuses = (stats: BaseStats, items: DiscItem[]): BaseStats => {
-    const finalStats = { ...stats };
-    const setCounts: Record<string, number> = {};
-    items.forEach(i => setCounts[i.set] = (setCounts[i.set] || 0) + 1);
-
-    Object.entries(setCounts).forEach(([setId, count]) => {
-        // Find set definition
-        const setData = DISC_SETS.find(s => s.id === setId || s.name.en === setId); // Basic lookup
-        
-        if (setData) {
-            // Apply 2pc
-            if (count >= 2 && setData.stats2pc) {
-                Object.entries(setData.stats2pc).forEach(([key, val]) => {
-                   if (typeof val === 'number') addStat(finalStats, key as StatType, val);
-                });
-            }
-            // Apply 4pc
-            if (count >= 4 && setData.stats4pc) {
-                Object.entries(setData.stats4pc).forEach(([key, val]) => {
-                   if (typeof val === 'number') addStat(finalStats, key as StatType, val);
-                });
-            }
-        }
-    });
-
-    return finalStats;
-};
+// NOTE: Ideally customSets should be passed from the main thread via WorkerRequest. 
+// We default to [] for custom sets in this worker context to avoid signature changes.
+const CUSTOM_SETS_MOCK: any[] = []; 
 
 const calculateDamage = (stats: BaseStats, enemy: EnemyStats): number => {
   const skillMult = stats.skillMultiplier ? (stats.skillMultiplier / 100) : 25.0;
 
-  // 1. ATK Area
   const finalAtk = stats.atkBase * (1 + stats.atkPercent / 100) + stats.atkFlat;
-  
-  // 2. Crit Area
   const effectiveCritRate = Math.min(1.0, Math.max(0, stats.critRate / 100));
   const critMultiplier = 1 + effectiveCritRate * (stats.critDmg / 100);
-
-  // 3. DMG Bonus
   const dmgMultiplier = 1 + stats.dmgBonus / 100;
 
-  // 4. Defense Area
   const DEF_COEFF = 794; 
   const penRatioVal = stats.penRatio / 100;
   const defReductionVal = (stats.defReduction || 0) / 100; 
   const effectiveDef = Math.max(0, enemy.def * (1 - penRatioVal) * (1 - defReductionVal) - stats.penFlat);
   const defMultiplier = DEF_COEFF / (effectiveDef + DEF_COEFF);
 
-  // 5. Resistance Area
   const enemyRes = enemy.res;
   const resShred = stats.resReduction || 0;
   const effectiveRes = enemyRes - resShred; 
   const resMultiplier = 1 - (effectiveRes / 100); 
 
-  // 6. Stun
   let stunMultValue = 1.0;
   if (enemy.stunned) {
      stunMultValue = enemy.stunMultiplier ? (enemy.stunMultiplier / 100) : 1.5;
@@ -99,39 +34,29 @@ const calculateDamage = (stats: BaseStats, enemy: EnemyStats): number => {
   return baseDmg * critMultiplier * dmgMultiplier * defMultiplier * resMultiplier * stunMultValue;
 };
 
-const getSetBonuses = (items: DiscItem[]): string[] => {
-    const setCounts: Record<string, number> = {};
-    items.forEach(i => setCounts[i.set] = (setCounts[i.set] || 0) + 1);
-    const bonuses: string[] = [];
-    Object.entries(setCounts).forEach(([name, count]) => {
-        // Return ID:Count format for UI parsing
-        // E.g., "Woodpecker:4"
-        const setData = DISC_SETS.find(s => s.id === name);
-        const id = setData ? setData.id : name;
-        
-        if (count >= 4) bonuses.push(`${id}:4`);
-        else if (count >= 2) bonuses.push(`${id}:2`);
-    });
-    return bonuses;
+// Helper: Generates a condensed label for the build (e.g., "Woodpecker(4) + Hormone(2)")
+const generateCompactComboName = (combo: DiscItem[]): string => {
+  const setCounts: Record<string, number> = {};
+  combo.forEach(c => {
+    if (c.set) setCounts[c.set] = (setCounts[c.set] || 0) + 1;
+  });
+
+  const parts: string[] = [];
+  
+  Object.entries(setCounts).forEach(([setId, count]) => {
+    const setDef = DISC_SETS.find(s => s.id === setId);
+    const displayName = setDef ? setDef.name.en : setId; 
+
+    if (count >= 4) {
+      parts.push(`${displayName}(4)`);
+    } else if (count >= 2) {
+      parts.push(`${displayName}(2)`);
+    }
+  });
+
+  return parts.length > 0 ? parts.join(' + ') : 'Rainbow Set';
 };
 
-// S-Rank Level 15 Main Stat Values
-const MAIN_STAT_VALUES: Record<string, number> = {
-  'hp': 2200,    // Slot 1
-  'atk': 316,    // Slot 2 / Slot 4,5,6
-  'def': 184,    // Slot 3
-  'critRate': 24, // Slot 4
-  'critDmg': 48,  // Slot 4
-  'atk_': 30,     // Slot 4,5,6
-  'anomaly': 92,  // Slot 4
-  'elemental': 30,// Slot 5
-  'pen_': 24,     // Slot 5
-  'impact': 18,   // Slot 6
-  'mastery': 30,  // Slot 6
-  'energy': 20,   // Slot 6
-};
-
-// Task 1: Improved Theoretical Optimizer with Set Traversal
 export const runTheoreticalOptimizer = (
     baseStats: BaseStats, 
     enemy: EnemyStats, 
@@ -143,14 +68,13 @@ export const runTheoreticalOptimizer = (
 
   console.log(`Optimizer: Running Theoretical`, { budget: actualBudget, config });
   
-  // Base setup with fixed main stats (Slot 1-3 + Config 4-6)
   const statsWithMains = { ...baseStats };
 
-  if (config) {
-    addStat(statsWithMains, 'hp', MAIN_STAT_VALUES['hp']);
-    addStat(statsWithMains, 'atk', MAIN_STAT_VALUES['atk']);
-    addStat(statsWithMains, 'def', MAIN_STAT_VALUES['def']);
+  addStat(statsWithMains, 'hp', MAIN_STAT_VALUES['hp']);
+  addStat(statsWithMains, 'atk', MAIN_STAT_VALUES['atk']);
+  addStat(statsWithMains, 'def', MAIN_STAT_VALUES['def']);
 
+  if (config) {
     if (config.slot4 && MAIN_STAT_VALUES[config.slot4]) addStat(statsWithMains, config.slot4, MAIN_STAT_VALUES[config.slot4]);
     if (config.slot5 && MAIN_STAT_VALUES[config.slot5]) addStat(statsWithMains, config.slot5, MAIN_STAT_VALUES[config.slot5]);
     if (config.slot6 && MAIN_STAT_VALUES[config.slot6]) addStat(statsWithMains, config.slot6, MAIN_STAT_VALUES[config.slot6]);
@@ -158,33 +82,25 @@ export const runTheoreticalOptimizer = (
 
   let bestSetDps = -1;
   let bestStats = { ...statsWithMains };
-  let bestComboParts: string[] = [];
+  let bestComboName = 'Rainbow / No Set';
 
   if (!isZeroBudget) {
-    // 1. Identify Valid Sets
     const validSets = DISC_SETS.filter(s => s.stats2pc || s.stats4pc);
     
-    // 2. Iterate Set Combinations: 4pc Set A + 2pc Set B
     for (const setA of validSets) {
         if (!setA.stats4pc) continue;
 
         for (const setB of validSets) {
-            // A set cannot be its own 2pc pair in this logic (4+2 of same set is just 4pc)
-            // But we allow "Rainbow 4pc" if setA == setB (just 4pc stats), though usually we want 4+2 distinct.
             const isSameSet = setA.id === setB.id;
-            
             const currentStats = { ...statsWithMains };
 
-            // Apply Set A (4pc = 2pc + 4pc stats)
-            if (setA.stats2pc) Object.entries(setA.stats2pc).forEach(([k,v]) => addStat(currentStats, k as StatType, v as number));
-            if (setA.stats4pc) Object.entries(setA.stats4pc).forEach(([k,v]) => addStat(currentStats, k as StatType, v as number));
+            if (setA.stats2pc) Object.entries(setA.stats2pc).forEach(([k,v]) => addStat(currentStats, k, v as number));
+            if (setA.stats4pc) Object.entries(setA.stats4pc).forEach(([k,v]) => addStat(currentStats, k, v as number));
 
-            // Apply Set B (2pc) if distinct
             if (!isSameSet && setB.stats2pc) {
-                Object.entries(setB.stats2pc).forEach(([k,v]) => addStat(currentStats, k as StatType, v as number));
+                Object.entries(setB.stats2pc).forEach(([k,v]) => addStat(currentStats, k, v as number));
             }
 
-            // 3. Optimize Substats on top of these set bonuses
             const optimizedStats = optimizeSubstats(currentStats, enemy, actualBudget);
             const dps = calculateDamage(optimizedStats, enemy);
 
@@ -192,17 +108,15 @@ export const runTheoreticalOptimizer = (
                 bestSetDps = dps;
                 bestStats = optimizedStats;
                 
-                // Construct ID based combo info for UI to parse (ID:Count)
                 if (isSameSet) {
-                    bestComboParts = [`${setA.id}:4`];
+                    bestComboName = `${setA.name.en}(4)`; 
                 } else {
-                    bestComboParts = [`${setA.id}:4`, `${setB.id}:2`];
+                    bestComboName = `${setA.name.en}(4) + ${setB.name.en}(2)`;
                 }
             }
         }
     }
   } else {
-    // Zero budget (Direct Calc)
     bestStats = { ...statsWithMains };
     bestSetDps = calculateDamage(bestStats, enemy);
   }
@@ -214,16 +128,15 @@ export const runTheoreticalOptimizer = (
     stats: bestStats,
     skillMultiplier: usedSkillMult,
     activeSetBonuses: isZeroBudget 
-        ? ['Manual:0'] // ID format
-        : bestComboParts,
+        ? ['Manual Panel (Raw)'] 
+        : [`Theoretical (+${actualBudget} Rolls)`, bestComboName],
     description: isZeroBudget ? `Direct Calculation` : `Theoretical Max`
   };
 };
 
-// Helper: Greedy Substat Optimizer
 const optimizeSubstats = (base: BaseStats, enemy: EnemyStats, budget: number): BaseStats => {
     const currentStats = { ...base };
-    const upgrades: { stat: StatType; value: number }[] = [
+    const upgrades: { stat: string; value: number }[] = [
       { stat: 'atk_', value: 3.0 },
       { stat: 'critRate', value: 2.4 },
       { stat: 'critDmg', value: 4.8 },
@@ -267,28 +180,30 @@ export const runInventoryOptimizer = (baseStats: BaseStats, enemy: EnemyStats, i
     }
   }
 
-  const TOP_K = 5;
-  let topBuilds: { dps: number; combo: DiscItem[]; stats: BaseStats }[] = [];
-  const currentCombo: DiscItem[] = new Array(6);
+  const TOP_K = 100;
+  let topBuilds: { dps: number; combo: DiscItem[]; stats: BaseStats; activeBonuses: string[] }[] = [];
+  
+  // Use a dense array approach with push/pop to prevent sparse array bugs
+  // This ensures index 0 (Slot 1) is correctly iterated and not skipped.
+  const currentCombo: DiscItem[] = [];
 
   const backtrack = (slotIndex: number) => {
     if (slotIndex === 6) {
-      // 1. Apply Individual Disc Stats
       let finalStats = applyItemStats(baseStats, currentCombo);
       finalStats.skillMultiplier = baseStats.skillMultiplier;
       
-      // 2. Apply Set Bonus Stats
-      finalStats = applySetBonuses(finalStats, currentCombo);
+      const setInfo = applySetBonuses(finalStats, currentCombo, CUSTOM_SETS_MOCK);
+      finalStats = setInfo.stats;
+      const activeBonuses = setInfo.activeBonuses;
 
-      // 3. Calc
       const dps = calculateDamage(finalStats, enemy);
       
       if (topBuilds.length < TOP_K) {
-        topBuilds.push({ dps, combo: [...currentCombo], stats: finalStats });
+        topBuilds.push({ dps, combo: [...currentCombo], stats: finalStats, activeBonuses });
         topBuilds.sort((a, b) => b.dps - a.dps);
       } else if (dps > topBuilds[topBuilds.length - 1].dps) {
         topBuilds.pop();
-        topBuilds.push({ dps, combo: [...currentCombo], stats: finalStats });
+        topBuilds.push({ dps, combo: [...currentCombo], stats: finalStats, activeBonuses });
         topBuilds.sort((a, b) => b.dps - a.dps);
       }
       return;
@@ -296,28 +211,26 @@ export const runInventoryOptimizer = (baseStats: BaseStats, enemy: EnemyStats, i
 
     const itemsInSlot = slots[slotIndex];
     for (const item of itemsInSlot) {
-      currentCombo[slotIndex] = item;
+      currentCombo.push(item);
       backtrack(slotIndex + 1);
+      currentCombo.pop();
     }
   };
 
   backtrack(0);
 
-  const best = topBuilds[0] || { dps: 0, stats: baseStats, combo: [] };
+  const best = topBuilds[0] || { dps: 0, stats: baseStats, combo: [], activeBonuses: [] };
   const mvDisplay = baseStats.skillMultiplier ? baseStats.skillMultiplier : 2500;
   const usedSkillMult = baseStats.skillMultiplier ? (baseStats.skillMultiplier / 100) : 25.0;
-  const bestSetBonuses = getSetBonuses(best.combo || []);
-  
-  // Task 4: Populate full stats and combo for topBuilds
+
   const formattedTopBuilds: BuildResult[] = topBuilds.map((b, idx) => {
-    // getSetBonuses returns IDs e.g. "Woodpecker:4"
-    const sets = getSetBonuses(b.combo);
     return {
       rank: idx + 1,
       dps: b.dps,
-      comboName: sets.length > 0 ? sets.join(' + ') : "Rainbow:0",
-      stats: b.stats, 
-      combo: b.combo  
+      // Use the compact name generator for the display label
+      comboName: generateCompactComboName(b.combo),
+      stats: b.stats,
+      combo: b.combo
     };
   });
 
@@ -326,7 +239,7 @@ export const runInventoryOptimizer = (baseStats: BaseStats, enemy: EnemyStats, i
     stats: best.stats,
     combo: best.combo,
     skillMultiplier: usedSkillMult,
-    activeSetBonuses: bestSetBonuses,
+    activeSetBonuses: best.activeBonuses,
     topBuilds: formattedTopBuilds,
     description: `Best Build (Skill MV: ${mvDisplay}%)`
   };

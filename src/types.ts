@@ -1,3 +1,4 @@
+
 export type StatType = 
   | 'atk' | 'atk_' | 'def' | 'def_' | 'hp' | 'hp_' 
   | 'critRate' | 'critDmg' | 'pen' | 'pen_' 
@@ -20,6 +21,7 @@ export interface BaseStats {
   impact: number;
   anomalyMastery: number;
   anomalyProficiency: number;
+  energy: number;
   
   // Optional field for custom skill multiplier
   skillMultiplier?: number;

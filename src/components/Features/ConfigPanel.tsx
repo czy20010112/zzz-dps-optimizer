@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect } from 'react';
 import { ZZZCard } from '../ui/ZZZCard';
 import { ZZZInput } from '../ui/ZZZInput';
 import { ZZZSelect } from '../ui/ZZZSelect';
@@ -6,6 +7,7 @@ import { ZZZToggle } from '../ui/ZZZToggle';
 import { BaseStats, EnemyStats, AgentData, EngineData, AppMode, TheoreticalConfig } from '../../types';
 import { useLanguage } from '../../locales';
 import { AGENTS_DB, ENGINES_DB } from '../../data';
+import { calculateFinalStats } from '../../utils/statCalculator'; // SSOT Import
 
 interface ConfigPanelProps {
   stats: BaseStats;
@@ -14,7 +16,7 @@ interface ConfigPanelProps {
   setEnemy: (e: EnemyStats) => void;
   mode: AppMode;
   setMode: (m: AppMode) => void;
-  onOpenCustomModal: () => void;
+  onOpenCustomModal: (editingData?: { agent?: AgentData, engine?: EngineData }) => void; 
   onEditCustomAgent?: (agent: AgentData) => void; 
   customAgents: AgentData[];
   customEngines: EngineData[];
@@ -24,15 +26,13 @@ interface ConfigPanelProps {
   setSkillMultiplier: (val: number) => void;
   theoreticalConfig: TheoreticalConfig;
   setTheoreticalConfig: (c: TheoreticalConfig) => void;
-  
-  // New Props for Decoupled Selection
   currentSelection: { agent: string, engine: string };
   setSelection: (sel: { agent: string, engine: string }) => void;
 }
 
 export const ConfigPanel: React.FC<ConfigPanelProps> = ({ 
   stats, setStats, enemy, setEnemy, mode, setMode,
-  onOpenCustomModal, onEditCustomAgent, customAgents, customEngines, budget, setBudget,
+  onOpenCustomModal, customAgents, customEngines, budget, setBudget,
   skillMultiplier, setSkillMultiplier,
   theoreticalConfig, setTheoreticalConfig,
   currentSelection, setSelection
@@ -43,8 +43,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
   const allEngines = [...customEngines, ...ENGINES_DB];
 
   // Helper getters
-  const selectedAgent = currentSelection.agent;
-  const selectedEngine = currentSelection.engine;
+  const selectedAgentId = currentSelection.agent;
+  const selectedEngineId = currentSelection.engine;
 
   const agentOptions = [
     { label: t('agent') + '...', value: '' },
@@ -56,11 +56,11 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
     ...allEngines.map(e => ({ label: e.name[lang], value: e.id }))
   ];
 
-  // Handle Edit Click - Now works for ALL agents (View/Edit)
   const handleEditClick = () => {
-    if (selectedAgent && onEditCustomAgent) {
-      const agent = allAgents.find(a => a.id === selectedAgent);
-      if (agent) onEditCustomAgent(agent);
+    const agent = allAgents.find(a => a.id === selectedAgentId);
+    const engine = allEngines.find(e => e.id === selectedEngineId);
+    if (agent || engine) {
+      onOpenCustomModal({ agent, engine });
     }
   };
 
@@ -69,63 +69,23 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
   };
 
   useEffect(() => {
-    // CRITICAL: Block auto-fill in RAW mode.
-    // In Raw mode, selection is just for visual reference or future features,
-    // it should NOT touch the input values.
     if (mode === 'raw') return;
-    
-    // Normal Mode Logic: Auto-populate stats
-    if (!selectedAgent && !selectedEngine) return;
+    if (!selectedAgentId && !selectedEngineId) return;
 
-    const agent = allAgents.find(a => a.id === selectedAgent);
-    const engine = allEngines.find(e => e.id === selectedEngine);
+    const agent = allAgents.find(a => a.id === selectedAgentId);
+    const engine = allEngines.find(e => e.id === selectedEngineId);
     
-    const newStats: BaseStats = {
-      ...stats,
-      atkBase: 0,
-      atkPercent: 0,
-      critRate: 5,
-      critDmg: 50,
-      dmgBonus: 0,
-      penRatio: 0,
-      penFlat: 0,
-      defReduction: 0,
-      resReduction: 0,
-      impact: 100,
-      anomalyMastery: 100,
-      anomalyProficiency: 100,
-    };
+    // ConfigPanel only shows Agent+Engine base stats. Sets are applied later in optimization.
+    // So we pass empty arrays for discs and customSets here.
+    const calculated = calculateFinalStats(agent, engine, [], {}, []);
 
-    if (agent?.stats) {
-       if (agent.stats.atkBase) newStats.atkBase = agent.stats.atkBase;
-       if (agent.stats.critRate) newStats.critRate = agent.stats.critRate;
-       if (agent.stats.critDmg) newStats.critDmg = agent.stats.critDmg;
-       if (agent.stats.impact) newStats.impact = agent.stats.impact;
-       if (agent.stats.anomalyMastery) newStats.anomalyMastery = agent.stats.anomalyMastery;
-       
-       if (agent.stats.atkPercent) newStats.atkPercent += agent.stats.atkPercent;
-       if (agent.stats.dmgBonus) newStats.dmgBonus += agent.stats.dmgBonus;
-       if (agent.stats.penRatio) newStats.penRatio += agent.stats.penRatio;
-       if (agent.stats.defReduction) newStats.defReduction += agent.stats.defReduction;
-       if (agent.stats.resReduction) newStats.resReduction += agent.stats.resReduction;
-       
-       if ((agent.stats as any).extra?.skillMultiplier) {
-         setSkillMultiplier((agent.stats as any).extra.skillMultiplier);
-       }
+    setStats(calculated);
+
+    if (calculated.skillMultiplier) {
+        setSkillMultiplier(calculated.skillMultiplier);
     }
 
-    if (engine?.stats) {
-       newStats.atkBase += (engine.stats.atkBase || 0);
-       if (engine.stats.atkPercent) newStats.atkPercent += engine.stats.atkPercent;
-       if (engine.stats.critRate) newStats.critRate += engine.stats.critRate;
-       if (engine.stats.critDmg) newStats.critDmg += engine.stats.critDmg;
-       if (engine.stats.dmgBonus) newStats.dmgBonus += engine.stats.dmgBonus;
-       if (engine.stats.penRatio) newStats.penRatio += engine.stats.penRatio;
-       if (engine.stats.impact) newStats.impact += engine.stats.impact;
-    }
-
-    setStats(newStats);
-  }, [selectedAgent, selectedEngine, mode, customAgents]); // Added dependencies
+  }, [selectedAgentId, selectedEngineId, mode, customAgents, customEngines]); 
 
   const handleStatChange = (key: keyof BaseStats, value: string) => {
     setStats({ ...stats, [key]: parseFloat(value) || 0 });
@@ -160,7 +120,6 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
     };
   };
 
-  // Main Stat Options for Theoretical Mode - Localized
   const slot4Options = [
     { label: t('stat_critRate'), value: 'critRate' },
     { label: t('stat_critDmg'), value: 'critDmg' },
@@ -182,7 +141,6 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
-      {/* 3-Mode Switcher */}
       <div style={{ display: 'flex', gap: '0', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }}>
         <button 
           onClick={() => setMode('inventory')}
@@ -204,13 +162,12 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
         </button>
       </div>
 
-      {/* Stats Card */}
       <ZZZCard 
         title={mode === 'raw' ? t('panel_stats') : t('agent_specs')}
         extra={
             mode !== 'raw' && (
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {selectedAgent && (
+                  {(selectedAgentId || selectedEngineId) && (
                     <button
                       onClick={handleEditClick}
                       style={{
@@ -224,7 +181,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                     </button>
                   )}
                   <button
-                    onClick={onOpenCustomModal}
+                    onClick={() => onOpenCustomModal()}
                     style={{
                         background: 'transparent', border: '1px solid var(--zzz-yellow)',
                         color: 'var(--zzz-yellow)', padding: '4px 12px',
@@ -238,26 +195,23 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
             )
         }
       >
-        {/* Agent/Engine Selection - In Raw Mode, we still show selection but it doesn't affect inputs */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
             <ZZZSelect 
                 label={t('agent')} 
                 options={agentOptions} 
-                value={selectedAgent} 
+                value={selectedAgentId} 
                 onChange={(v) => handleSelectionChange('agent', v)} 
             />
             <ZZZSelect 
                 label={t('w_engine')} 
                 options={engineOptions} 
-                value={selectedEngine} 
+                value={selectedEngineId} 
                 onChange={(v) => handleSelectionChange('engine', v)} 
             />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          {/* Conditional Inputs based on Mode */}
           {mode === 'raw' ? (
-              // RAW MODE INPUTS
               <>
                 <ZZZInput 
                     label={t('final_atk')} 
@@ -273,21 +227,17 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                     onChange={e => setSkillMultiplier(parseFloat(e.target.value) || 0)} 
                     style={{ borderColor: 'var(--zzz-cyan)' }}
                 />
-                
                 <ZZZInput label="局内攻击加成 %" type="number" value={stats.atkPercent} onChange={e => handleStatChange('atkPercent', e.target.value)} />
                 <ZZZInput label="局内固定攻击" type="number" value={stats.atkFlat} onChange={e => handleStatChange('atkFlat', e.target.value)} />
-
                 <ZZZInput label={t('final_crit_rate')} type="number" value={stats.critRate} onChange={e => handleStatChange('critRate', e.target.value)} style={{ borderColor: 'var(--zzz-red)' }}/>
                 <ZZZInput label={t('final_crit_dmg')} type="number" value={stats.critDmg} onChange={e => handleStatChange('critDmg', e.target.value)} style={{ borderColor: 'var(--zzz-red)' }} />
                 <ZZZInput label={t('dmg_bonus')} type="number" value={stats.dmgBonus} onChange={e => handleStatChange('dmgBonus', e.target.value)} />
                 <ZZZInput label={t('pen_ratio')} type="number" value={stats.penRatio} onChange={e => handleStatChange('penRatio', e.target.value)} />
                 <ZZZInput label={t('final_pen')} type="number" value={stats.penFlat} onChange={e => handleStatChange('penFlat', e.target.value)} />
-                
                 <ZZZInput label="减防/无视防御 %" type="number" value={stats.defReduction || 0} onChange={e => handleStatChange('defReduction', e.target.value)} />
                 <ZZZInput label="抗性降低 %" type="number" value={stats.resReduction || 0} onChange={e => handleStatChange('resReduction', e.target.value)} />
               </>
           ) : (
-              // NORMAL MODE INPUTS
               <>
                 <ZZZInput label={t('base_atk')} type="number" value={stats.atkBase} onChange={e => handleStatChange('atkBase', e.target.value)} />
                 <ZZZInput label={t('flat_atk')} type="number" value={stats.atkFlat} onChange={e => handleStatChange('atkFlat', e.target.value)} />
@@ -303,7 +253,6 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
           )}
         </div>
         
-        {/* Task 4: Theoretical Mode Specific Config */}
         {mode === 'theoretical' && (
            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px dashed var(--zzz-grey)' }}>
              <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr 1fr', gap: '12px', alignItems: 'end' }}>
@@ -336,7 +285,6 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
         )}
       </ZZZCard>
 
-      {/* Target Analysis */}
       <ZZZCard title={t('target_analysis')} borderColor="var(--zzz-red)">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <ZZZInput label={t('enemy_level')} type="number" value={enemy.level} onChange={e => handleEnemyChange('level', parseInt(e.target.value) || 0)} />
