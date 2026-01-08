@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useLanguage } from '../../locales';
 
@@ -42,7 +43,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             color: 'var(--zzz-white)',
             textShadow: '0 0 10px rgba(250, 219, 20, 0.5)'
           }}>
-            ZZZ <span style={{ color: 'var(--zzz-yellow)' }}>Optimizer</span> // TYPE-II
+            <span style={{ color: 'var(--zzz-yellow)' }}>绝区零驱动盘优选及伤害计算</span> 
           </h1>
         </div>
         
@@ -62,13 +63,22 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             [{lang.toUpperCase()}]
           </button>
           
-          <div style={{ 
-            fontFamily: 'monospace', 
-            color: 'var(--zzz-border)',
-            fontSize: '0.8rem' 
-          }}>
-            SYS.VER.0.9.2_BETA
-          </div>
+          <a 
+            href="https://github.com/czy20010112/zzz-dps-optimizer"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ 
+              fontFamily: 'monospace', 
+              color: 'var(--zzz-border)',
+              fontSize: '0.8rem',
+              textDecoration: 'none',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--zzz-yellow)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--zzz-border)'}
+          >
+            SYS.VER.1.0.0
+          </a>
         </div>
       </header>
 

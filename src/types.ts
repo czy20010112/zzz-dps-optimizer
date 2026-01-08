@@ -93,6 +93,7 @@ export interface TheoreticalConfig {
   slot4: StatType;
   slot5: StatType;
   slot6: StatType;
+  isRaw?: boolean; // Task 1: Explicit Raw Mode Flag
 }
 
 export type WorkerRequestType = 'CALCULATE_THEORETICAL' | 'OPTIMIZE_INVENTORY';

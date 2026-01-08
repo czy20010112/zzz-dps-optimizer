@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { BaseStats, EnemyStats, BuildResult } from '../../types';
+import { BaseStats, EnemyStats, BuildResult, StatType } from '../../types';
 import { ZZZButton } from '../ui/ZZZButton';
 import { useLanguage } from '../../locales';
 import { BreakdownRow, formatVal, modalOverlayStyle } from './FormulaModal';
@@ -13,6 +14,13 @@ interface BuildDetailsModalProps {
   enemy: EnemyStats;
   skillMultiplier: number;
 }
+
+// Reuse Values for UI Display
+const MAIN_STAT_VALUES: Partial<Record<StatType, string>> = {
+  'atk_': '30%', 'hp_': '30%', 'def_': '30%', 'elemental': '30%',
+  'critRate': '24%', 'critDmg': '48%', 'pen_': '24%', 'mastery': '92',
+  'impact': '18', 'hp': '2200', 'atk': '316', 'def': '184', 'energy': '20%'
+};
 
 export const BuildDetailsModal: React.FC<BuildDetailsModalProps> = ({ visible, onClose, build, enemy, skillMultiplier }) => {
   const { t, lang } = useLanguage();
@@ -36,11 +44,15 @@ export const BuildDetailsModal: React.FC<BuildDetailsModalProps> = ({ visible, o
   
   const dmgBonus = stats.dmgBonus / 100;
   const dmgMult = 1 + dmgBonus;
+
+  // Def Logic (Strict matching FormulaModal)
   const penRatioVal = stats.penRatio / 100;
   const defReductionVal = (stats.defReduction || 0) / 100;
+  // Note: effectiveDef cannot be negative
   const effectiveDef = Math.max(0, enemy.def * (1 - penRatioVal) * (1 - defReductionVal) - stats.penFlat);
   const DEF_COEFF = 794; 
   const defMult = DEF_COEFF / (effectiveDef + DEF_COEFF);
+  
   const resShredVal = (stats.resReduction || 0);
   const effectiveResPct = enemy.res - resShredVal; 
   const effectiveResRatio = effectiveResPct / 100;
@@ -54,6 +66,11 @@ export const BuildDetailsModal: React.FC<BuildDetailsModalProps> = ({ visible, o
   };
 
   const getStatLabel = (statKey: string) => t(`stat_${statKey}`) || statKey;
+
+  const getStatValueDisplay = (statKey: string) => {
+      const val = MAIN_STAT_VALUES[statKey as StatType];
+      return val ? `+${val}` : '';
+  };
 
   // --- Active Set Bonuses Calculation ---
   // We use the string returned by optimizer, but we need to localize it.
@@ -100,10 +117,13 @@ export const BuildDetailsModal: React.FC<BuildDetailsModalProps> = ({ visible, o
     resArea: lang === 'cn' ? '抗性区' : 'RES Mult',
     stunArea: lang === 'cn' ? '失衡区' : 'Stun Mult',
     rank: lang === 'cn' ? '排名' : 'RANK',
-    expectedDps: lang === 'cn' ? '期望伤害 (DPS)' : 'EXPECTED DPS',
+    expectedDps: lang === 'cn' ? '期望伤害' : 'EXPECTED DAMAGE',
     buildDetails: lang === 'cn' ? '配装详情' : 'BUILD DETAILS',
     close: lang === 'cn' ? '关闭' : 'CLOSE DETAILS',
-    capped: lang === 'cn' ? '(溢出)' : '(MAX 100%)'
+    capped: lang === 'cn' ? '(溢出)' : '(MAX 100%)',
+    defFormula: lang === 'cn' ? '公式: 794 / (防御 * (1-穿透) * (1-减防) - 固定穿透 + 794)' : 'Formula: 794 / (Def * (1-Pen%) * (1-Shred) - FlatPen + 794)',
+    effDef: lang === 'cn' ? '有效防御' : 'Eff. Def',
+    dmgRed: lang === 'cn' ? '减伤' : 'Reduction'
   };
 
   return (
@@ -128,7 +148,7 @@ export const BuildDetailsModal: React.FC<BuildDetailsModalProps> = ({ visible, o
                      {TEXT.buildDetails}
                  </h2>
                  <div style={{ color: 'var(--zzz-cyan)', fontSize: '0.9rem', marginTop: '4px' }}>
-                     {TEXT.rank} #{build.rank} - {build.comboName}
+                     {TEXT.rank} #{build.rank}
                  </div>
              </div>
              <div style={{ textAlign: 'right' }}>
@@ -166,16 +186,34 @@ export const BuildDetailsModal: React.FC<BuildDetailsModalProps> = ({ visible, o
                     value={formatVal(dmgMult)} 
                     formula={`1 + ${stats.dmgBonus.toFixed(1)}%`} 
                 />
-                <BreakdownRow 
-                    label={TEXT.defArea} 
-                    value={formatVal(defMult)} 
-                    formula={`Coeff / (Def - Pen)`} 
-                />
+
                 <BreakdownRow 
                     label={TEXT.resArea} 
                     value={formatVal(resMult)} 
-                    formula={`1 - Res%`} 
+                    formula={`1 - (${enemy.res}% - ${stats.resReduction || 0}%)`} 
                 />
+
+                {/* Styled Defense Row matches FormulaModal style now */}
+                <div style={{ 
+                    background: 'var(--zzz-black)', padding: '10px', 
+                    borderLeft: '4px solid var(--zzz-grey)', 
+                    display: 'flex', flexDirection: 'column'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 'bold', color: 'var(--zzz-white)', fontSize: '0.9rem' }}>{TEXT.defArea}</span>
+                        <span style={{ fontWeight: 'bold', color: 'var(--zzz-white)' }}>{formatVal(defMult)}</span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--zzz-light-grey)', marginBottom: '4px', fontStyle: 'italic', fontFamily: 'monospace' }}>
+                        {TEXT.defFormula}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--zzz-light-grey)',marginBottom: '4px'}}>
+                        794 / ({enemy.def} * (1 - {stats.penRatio.toFixed(1)}%) * (1 - {(stats.defReduction || 0).toFixed(1)}%) - {stats.penFlat} + 794)
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--zzz-cyan)' }}>
+                        {TEXT.effDef}: {Math.round(effectiveDef)} ({TEXT.dmgRed} {(100 - defMult*100).toFixed(1)}%)
+                    </div>
+                </div>
+
                 <BreakdownRow 
                     label={TEXT.stunArea} 
                     value={formatVal(stunMult)} 
@@ -193,9 +231,15 @@ export const BuildDetailsModal: React.FC<BuildDetailsModalProps> = ({ visible, o
                          <div key={idx} style={{ background: 'var(--zzz-black)', border: '1px solid var(--zzz-grey)', padding: '12px', position: 'relative' }}>
                              <div style={{ position: 'absolute', top: 0, right: 0, background: 'var(--zzz-cyan)', color: 'var(--zzz-black)', fontSize: '0.7rem', padding: '2px 6px', fontWeight: 'bold' }}>#{item.slot}</div>
                              <div style={{ color: 'var(--zzz-white)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '4px' }}>{getLocalizedSetName(item.set)}</div>
-                             <div style={{ color: 'var(--zzz-yellow)', fontSize: '0.9rem', fontWeight: 900, marginBottom: '8px', textTransform: 'uppercase' }}>
+                             
+                             {/* Task 2: Main Stat + Value */}
+                             <div style={{ color: 'var(--zzz-yellow)', fontSize: '0.9rem', fontWeight: 900, marginBottom: '2px', textTransform: 'uppercase' }}>
                                  {getStatLabel(item.mainStat)}
                              </div>
+                             <div style={{ color: 'var(--zzz-light-grey)', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '8px' }}>
+                                 {getStatValueDisplay(item.mainStat)}
+                             </div>
+
                              <div style={{ fontSize: '0.75rem', color: '#888' }}>
                                  {item.subStats.map((s, i) => (
                                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -208,21 +252,20 @@ export const BuildDetailsModal: React.FC<BuildDetailsModalProps> = ({ visible, o
                      ))}
                  </div>
 
-                 {/* Active Set Bonuses */}
+                 {/* Active Set Bonuses - Updated Style */}
                  <h4 style={{ color: 'var(--zzz-light-grey)', marginTop: 0, marginBottom: '12px', textTransform: 'uppercase' }}>{TEXT.setBonusesTitle}</h4>
                  <div style={{ 
                     background: 'var(--zzz-dark-grey)', 
-                    border: '1px solid var(--zzz-yellow)', 
+                    borderLeft: '4px solid var(--zzz-cyan)', 
                     padding: '16px',
-                    clipPath: 'polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px)'
+                    marginBottom: '8px'
                  }}>
                     {activeBonuses.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {activeBonuses.map((bonus, idx) => (
-                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <div style={{ width: '8px', height: '8px', background: 'var(--zzz-yellow)' }} />
-                                    <span style={{ color: 'var(--zzz-white)', fontWeight: 'bold' }}>{localizeBonusString(bonus)}</span>
-                                </div>
+                                <span key={idx} style={{ fontSize: '0.8rem', color: 'var(--zzz-white)' }}>
+                                    • {localizeBonusString(bonus)}
+                                </span>
                             ))}
                         </div>
                     ) : (

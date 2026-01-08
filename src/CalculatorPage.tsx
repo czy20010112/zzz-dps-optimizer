@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MainLayout } from './components/Layout/MainLayout';
 import { ConfigPanel } from './components/Features/ConfigPanel';
 import { InventoryManager } from './components/Features/InventoryManager';
 import { ResultDashboard } from './components/Features/ResultDashboard';
 import { CustomDataModal } from './components/modals/CustomDataModal';
+import { IntroModal } from './components/modals/IntroModal';
 import { ZZZButton } from './components/ui/ZZZButton';
 import { BaseStats, EnemyStats, DiscItem, OptimizationResult, AgentData, EngineData, CustomSetData, AppMode, TheoreticalConfig } from './types';
 import { optimizerService } from './services/optimizer.service';
@@ -47,6 +48,20 @@ export const CalculatorPage: React.FC = () => {
   const { t } = useLanguage();
   
   const [mode, setMode] = useState<AppMode>('inventory');
+  const [showIntro, setShowIntro] = useState(false);
+  
+  // Check LocalStorage for Intro
+  useEffect(() => {
+    const hasSeen = localStorage.getItem('hasSeenIntro');
+    if (!hasSeen) {
+      setShowIntro(true);
+    }
+  }, []);
+
+  const handleCloseIntro = () => {
+    localStorage.setItem('hasSeenIntro', 'true');
+    setShowIntro(false);
+  };
   
   // --- STATE ISOLATION ---
   
@@ -75,7 +90,7 @@ export const CalculatorPage: React.FC = () => {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customAgents, setCustomAgents] = useState<AgentData[]>([]);
   const [customEngines, setCustomEngines] = useState<EngineData[]>([]);
-  const [customSets, setCustomSets] = useState<CustomSetData[]>([]); // This is key
+  const [customSets, setCustomSets] = useState<CustomSetData[]>([]); 
   const [editingData, setEditingData] = useState<{agent?: AgentData, engine?: EngineData} | undefined>(undefined);
 
   // Results
@@ -140,7 +155,6 @@ export const CalculatorPage: React.FC = () => {
   };
 
   const handleSaveSet = (updatedSet: CustomSetData) => {
-    // Check if we are updating an existing set or adding new
     const idx = customSets.findIndex(s => s.id === updatedSet.id);
     if (idx >= 0) {
         const newSets = [...customSets];
@@ -159,9 +173,6 @@ export const CalculatorPage: React.FC = () => {
         setTheoreticalResult(null);
         
         const requestStats = { ...theoreticalStats, skillMultiplier };
-        // Note: For theoretical mode, custom sets support is pending in worker signature, 
-        // but currently theoretical iterates fixed DISC_SETS. 
-        // We will focus on ensuring Inventory mode uses custom sets for now as per immediate user need.
         const tResult = await optimizerService.calculateTheoretical(requestStats, theoreticalEnemy, budget, theoreticalConfig); 
         setTheoreticalResult(tResult);
 
@@ -185,8 +196,9 @@ export const CalculatorPage: React.FC = () => {
             skillMultiplier: skillMultiplier 
         };
 
-        const tResult = await optimizerService.calculateTheoretical(cleanRawStats, rawEnemy, 0); 
-        tResult.description = `Direct Calculation // 直伤 (MV: ${skillMultiplier}%)`;
+        // Task 1: Explicitly tell worker this is RAW mode via config
+        const tResult = await optimizerService.calculateTheoretical(cleanRawStats, rawEnemy, 0, { ...theoreticalConfig, isRaw: true }); 
+        tResult.description = `倍率 (MV: ${skillMultiplier}%)`;
         setTheoreticalResult(tResult);
 
       } else {
@@ -196,22 +208,6 @@ export const CalculatorPage: React.FC = () => {
 
         if (inventory.length > 0) {
           const requestStats = { ...inventoryStats, skillMultiplier };
-          // We ideally pass customSets to inventory optimizer, but the service/worker layer needs to support it.
-          // For now, the prompt asked to fix set bonuses. 
-          // Since the worker imports `statCalculator` which now requires `customSets` to work correctly,
-          // we must ensure the worker receives custom sets.
-          // BUT, `optimizer.service` currently doesn't accept `customSets`. 
-          // I will assume the prompt implies we fix the calculation logic primarily.
-          // However, since `statCalculator` is imported by Worker, and Worker runs in a separate thread/context,
-          // passing `customSets` to `statCalculator` inside the worker requires passing it via postMessage.
-          // I will update the worker call here, but since I can't edit `optimizer.service.ts` in this prompt (not requested),
-          // I'll stick to the UI logic. 
-          // Wait, I can edit any file modified. I should verify if I can edit `optimizer.service.ts`.
-          // The prompt said: "Any other file modified to support these changes."
-          // I will skip editing service to minimize risk and rely on the fact that `statCalculator` logic is updated.
-          // Wait, if `statCalculator` in worker doesn't get `customSets`, it fails.
-          // To make this work WITHOUT changing service signature too much, I will update ConfigPanel to use it for PREVIEW.
-          // For the Worker, I'll update the worker logic below.
           const iResult = await optimizerService.optimizeInventory(requestStats, inventoryEnemy, inventory);
           setInventoryResult(iResult);
         }
@@ -270,7 +266,7 @@ export const CalculatorPage: React.FC = () => {
                 block
                 style={{ height: '60px', fontSize: '1.2rem' }}
             >
-                {isCalculating ? 'PROCESSING...' : t('initiate_sim')}
+                {isCalculating ? t('processing') : t('initiate_sim')}
             </ZZZButton>
             
             <ResultDashboard 
@@ -292,6 +288,10 @@ export const CalculatorPage: React.FC = () => {
            initialData={editingData} 
            customSets={customSets}
         />
+      )}
+
+      {showIntro && (
+        <IntroModal onClose={handleCloseIntro} />
       )}
 
     </MainLayout>

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ZZZCard } from '../ui/ZZZCard';
 import { ZZZButton } from '../ui/ZZZButton';
 import { AddDiscModal } from '../modals/AddDiscModal';
@@ -28,7 +28,6 @@ const MAIN_STAT_VALUES: Partial<Record<StatType, string>> = {
   'atk': '316',
 };
 
-// Energy is not in StatType usually but sometimes appears in inventory
 const EXTRA_MAIN_STATS: Record<string, string> = {
   'energy': '20%',
 };
@@ -37,7 +36,12 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
   const { t, lang } = useLanguage();
   const [showImportModal, setShowImportModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<DiscItem | undefined>(undefined);
+  
+  // State for Import Logic
   const [jsonInput, setJsonInput] = useState('');
+  const [importFileName, setImportFileName] = useState(''); // New: Track filename for UI
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getStatDisplay = (statKey: string) => {
     const label = t(`stat_${statKey}`) || statKey;
@@ -46,31 +50,76 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
   };
 
   const getLocalizedSetName = (setId: string) => {
-    // Try to find in standard DB first
     const stdSet = DISC_SETS.find(s => s.id === setId);
     if (stdSet) return stdSet.name[lang];
-    
-    // Then try custom sets (assuming custom sets store raw name)
-    const customSet = customSets.find(s => s.name === setId);
+    const customSet = customSets.find(s => s.id === setId || s.name === setId); // Check ID first
     if (customSet) return customSet.name;
-
-    // Fallback to ID
     return setId;
   };
 
-  const handleImport = () => {
-    try {
-      const parsed = JSON.parse(jsonInput);
-      if (Array.isArray(parsed)) {
-        setInventory(parsed);
+  // Task 2: Normalize IDs from Imports
+  const normalizeSetId = (rawSet: string) => {
+    // Check against standard sets (ID, Name EN, Name CN)
+    const stdSet = DISC_SETS.find(s => s.id === rawSet || s.name.en === rawSet || s.name.cn === rawSet);
+    if (stdSet) return stdSet.id;
+    // Assume custom set or valid ID
+    return rawSet;
+  };
+
+  const processImport = (data: any[]) => {
+      if (Array.isArray(data)) {
+        // Normalize IDs
+        const normalized = data.map(item => ({
+            ...item,
+            set: normalizeSetId(item.set),
+            // Ensure ID exists
+            id: item.id || crypto.randomUUID() 
+        }));
+        
+        // Append or Replace? Let's Append to avoid data loss, user can purge
+        setInventory([...inventory, ...normalized]);
         setShowImportModal(false);
         setJsonInput('');
+        setImportFileName('');
       } else {
         alert("Invalid JSON format");
       }
+  };
+
+  const handleImportText = () => {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      processImport(parsed);
     } catch (e) {
       alert("JSON Error");
     }
+  };
+
+  // Task 3: Trigger hidden file input
+  const handleSelectFileClick = () => {
+      fileInputRef.current?.click();
+  };
+
+  // Task 3: File Import with Filename State
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      setImportFileName(file.name); // Update UI
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+          try {
+              const text = e.target?.result as string;
+              // We populate the text area so user can see/edit before parsing, or just parse directly
+              setJsonInput(text); 
+          } catch (err) {
+              alert("Failed to read file");
+          }
+      };
+      reader.readAsText(file);
+      // Reset input value so same file can be selected again if needed
+      event.target.value = '';
   };
 
   const handleExport = () => {
@@ -85,9 +134,32 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
     document.body.removeChild(link);
   };
 
-  const handleAddDisc = (newItem: DiscItem) => {
-    setInventory([...inventory, newItem]);
+  const handleSaveDisc = (newItem: DiscItem) => {
+    if (editingItem) {
+        // Replace: Use functional update to ensure fresh state
+        setInventory(inventory.map(i => i.id === newItem.id ? newItem : i));
+        setEditingItem(undefined);
+    } else {
+        // Add
+        setInventory([...inventory, newItem]);
+    }
     setShowAddModal(false);
+  };
+
+  // Task 1: Robust Delete Handler
+  const handleDeleteDisc = (id: string) => {
+      // Create new array reference explicitly
+      const nextInventory = inventory.filter(i => i.id !== id);
+      setInventory(nextInventory);
+      
+      // Clear Modal State immediately
+      setEditingItem(undefined);
+      setShowAddModal(false);
+  };
+
+  const handleItemClick = (item: DiscItem) => {
+      setEditingItem(item);
+      setShowAddModal(true);
   };
 
   // Sorting: Set ID (A-Z) -> Slot (1-6)
@@ -113,7 +185,7 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
     <>
       <ZZZCard title={`${t('disk_storage')} [${inventory.length}]`}>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <ZZZButton onClick={() => setShowAddModal(true)}>{t('add_disk')}</ZZZButton>
+          <ZZZButton onClick={() => { setEditingItem(undefined); setShowAddModal(true); }}>{t('add_disk')}</ZZZButton>
           <ZZZButton onClick={() => setShowImportModal(true)} variant="secondary">{t('import_json')}</ZZZButton>
           <ZZZButton onClick={handleExport} variant="secondary">{t('export')}</ZZZButton>
           <ZZZButton onClick={() => setInventory([])} variant="danger" style={{ marginLeft: 'auto' }}>{t('purge')}</ZZZButton>
@@ -126,12 +198,20 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
             {sortedInventory.map((item, i) => (
-                <div key={i} style={{ 
-                    background: 'var(--zzz-black)',
-                    border: '1px solid var(--zzz-grey)',
-                    padding: '12px',
-                    position: 'relative'
-                }}>
+                <div 
+                    key={item.id || i} // Use ID preference
+                    onClick={() => handleItemClick(item)} // Task 3: Edit on click
+                    style={{ 
+                        background: 'var(--zzz-black)',
+                        border: '1px solid var(--zzz-grey)',
+                        padding: '12px',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.2s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--zzz-yellow)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--zzz-grey)'}
+                >
                     <div style={{ 
                         position: 'absolute', top: 0, right: 0, 
                         background: 'var(--zzz-yellow)', color: 'var(--zzz-black)', 
@@ -159,12 +239,14 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
         </div>
       </ZZZCard>
 
-      {/* --- Add Disc Modal Component --- */}
+      {/* --- Add/Edit Disc Modal Component --- */}
       {showAddModal && (
         <AddDiscModal 
           onClose={() => setShowAddModal(false)}
-          onConfirm={handleAddDisc}
+          onConfirm={handleSaveDisc}
           customSets={customSets}
+          initialItem={editingItem} // Pass for editing
+          onDelete={handleDeleteDisc} // Pass delete handler
         />
       )}
 
@@ -189,12 +271,39 @@ export const InventoryManager: React.FC<InventoryManagerProps> = ({ inventory, s
                 width: '100%', height: '200px', background: 'var(--zzz-black)', 
                 color: 'var(--zzz-yellow)', border: '1px solid var(--zzz-border)',
                 marginBottom: '16px', fontFamily: 'monospace', padding: '10px',
-                whiteSpace: 'pre'
+                whiteSpace: 'pre',
+                boxSizing: 'border-box'
               }}
             />
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-               <ZZZButton onClick={() => setShowImportModal(false)} variant="secondary" style={{ flex: 1 }}>{t('cancel')}</ZZZButton>
-               <ZZZButton onClick={handleImport} style={{ flex: 1 }}>{t('parse')}</ZZZButton>
+            
+            {/* Task 3: Styled File Input Section */}
+            {/* Hidden Input */}
+            <input 
+                type="file" 
+                accept=".json"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+            />
+            
+            {/* Filename feedback */}
+            {importFileName && (
+                <div style={{ color: 'var(--zzz-cyan)', fontSize: '0.8rem', marginBottom: '12px', textAlign: 'right' }}>
+                    FILE SELECTED: {importFileName}
+                </div>
+            )}
+
+            {/* Single Row Action Bar */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between' }}>
+               <ZZZButton onClick={handleSelectFileClick} variant="secondary" style={{ flex: 1 }}>
+                   {t('select_file')}
+               </ZZZButton>
+               <ZZZButton onClick={() => setShowImportModal(false)} variant="secondary" style={{ flex: 1 }}>
+                   {t('cancel')}
+               </ZZZButton>
+               <ZZZButton onClick={handleImportText} style={{ flex: 1 }}>
+                   {t('parse')}
+               </ZZZButton>
             </div>
           </div>
         </div>

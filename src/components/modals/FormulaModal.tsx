@@ -1,7 +1,9 @@
+
 import React from 'react';
 import { BaseStats, EnemyStats, OptimizationResult } from '../../types';
 import { ZZZButton } from '../ui/ZZZButton';
 import { useLanguage } from '../../locales';
+import { DISC_SETS } from '../../data';
 
 interface FormulaModalProps {
   visible: boolean;
@@ -16,7 +18,7 @@ export const formatPct = (n: number) => (n * 100).toFixed(1) + '%';
 export const formatVal = (n: number) => n.toFixed(3);
 
 export const FormulaModal: React.FC<FormulaModalProps> = ({ visible, onClose, result, enemy }) => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   if (!visible || !result) return null;
 
   const { stats } = result;
@@ -57,6 +59,30 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ visible, onClose, re
 
   // Check if theoretical mode active set bonuses contain info
   const isTheoretical = result.activeSetBonuses?.some(s => s.startsWith('Theoretical'));
+  const isRaw = result.activeSetBonuses?.some(s => s.includes('Raw') || s.includes('Direct'));
+
+  // Copy of Localize Function from BuildDetails (Standardize this in utils if needed later)
+  const localizeBonusString = (bonus: string) => {
+    if (lang === 'en') return bonus;
+    const regex = /^(.+) \((\d+)\):(.+)$/;
+    const match = bonus.match(regex);
+    if (match) {
+        const [, setNameEn, count, desc] = match;
+        const setDef = DISC_SETS.find(s => s.name.en === setNameEn);
+        const localSetName = setDef ? setDef.name[lang] : setNameEn;
+        
+        // Translate stats in description (Simplified Map)
+        let localDesc = desc;
+        localDesc = localDesc.replace('ATK', t('stat_atk_'));
+        localDesc = localDesc.replace('CRIT', t('stat_critRate'));
+        localDesc = localDesc.replace('CDMG', t('stat_critDmg'));
+        localDesc = localDesc.replace('DMG', t('stat_dmgBonus'));
+        localDesc = localDesc.replace('PEN%', t('stat_penRatio'));
+        
+        return `${localSetName} (${count}):${localDesc}`;
+    }
+    return bonus;
+  };
 
   return (
     <div style={modalOverlayStyle}>
@@ -70,7 +96,7 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ visible, onClose, re
           display: 'flex', justifyContent: 'space-between', alignItems: 'center'
         }}>
           <h2 style={{ margin: 0, color: 'var(--zzz-white)', textTransform: 'uppercase', fontStyle: 'italic' }}>
-            伤害计算详情 // FORMULA
+            {lang === 'cn' ? '伤害乘区详情' : 'FORMULA DETAILS'}
           </h2>
           <div style={{ color: 'var(--zzz-yellow)', fontWeight: 'bold', fontSize: '1.2rem' }}>
             {Math.round(result.dps).toLocaleString()}
@@ -86,60 +112,90 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ visible, onClose, re
           fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--zzz-cyan)',
           textAlign: 'center'
         }}>
-          伤害 = 攻击区 × 倍率区 × 双暴区 × 增伤区 × 防御区 × 抗性区 × 失衡区
+          {t('formula_desc')}
         </div>
 
         {/* Breakdown Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', maxHeight: '50vh', overflowY: 'auto', paddingRight: '8px' }}>
           
           <BreakdownRow 
-            label="攻击区 (ATK)" 
+            label={lang === 'cn' ? '攻击区' : 'ATK Area'}
             value={Math.round(finalAtk)} 
             formula={`${Math.round(baseAtk)} × (1 + ${stats.atkPercent}%) + ${Math.round(flatAtk)}${isTheoretical ? ` [${t('incl_slot_2')}]` : ''}`} 
           />
           
           <BreakdownRow 
-            label="倍率区 (Motion Value)" 
+            label={lang === 'cn' ? '倍率区' : 'Motion Value'}
             value={formatPct(SKILL_MV)} 
-            formula={`${formatPct(SKILL_MV)} (Used in Calculation)`} 
+            formula={`${formatPct(SKILL_MV)}`} 
           />
 
           <BreakdownRow 
-            label="双暴区 (Crit Avg)" 
+            label={lang === 'cn' ? '双暴区' : 'Crit Area'} 
             value={formatVal(critMult)} 
             formula={`1 + (${stats.critRate.toFixed(1)}% × ${stats.critDmg.toFixed(1)}%)`} 
             highlight
           />
 
           <BreakdownRow 
-            label="增伤区 (DMG Bonus)" 
+            label={lang === 'cn' ? '增伤区' : 'DMG Bonus'}
             value={formatVal(dmgMult)} 
             formula={`1 + ${stats.dmgBonus.toFixed(1)}%`} 
           />
 
           <BreakdownRow 
-            label="抗性区 (RES)" 
+            label={lang === 'cn' ? '抗性区' : 'RES Mult'}
             value={formatVal(resMult)} 
             formula={`1 - (${enemy.res}% - ${stats.resReduction || 0}%)`} 
           />
 
+          {/* Reordered: DEF Area Above Set Bonuses */}
+          {/* Special Defense Row: Styled to match BreakdownRow */}
+          <div style={{ 
+            background: 'var(--zzz-black)', padding: '10px', 
+            borderLeft: '4px solid var(--zzz-grey)', 
+            display: 'flex', flexDirection: 'column'
+          }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <span style={{ fontWeight: 'bold', color: 'var(--zzz-white)', fontSize: '0.9rem' }}>{lang === 'cn' ? '防御区' : 'DEF Area'}</span>
+                <span style={{ fontWeight: 'bold', color: 'var(--zzz-white)' }}>{formatVal(defMult)}</span>
+             </div>
+             
+             <div style={{ fontSize: '0.75rem', color: 'var(--zzz-light-grey)', marginBottom: '4px', fontStyle: 'italic' }}>
+                {t('formula_equation')}
+             </div>
+             
+             <div style={{ fontSize: '0.75rem', color: 'var(--zzz-light-grey)', fontFamily: 'italic', marginBottom: '4px' }}>
+                {defCoefficient} / ({enemy.def} * (1 - {stats.penRatio.toFixed(1)}%) * (1 - {(stats.defReduction || 0).toFixed(1)}%) - {stats.penFlat} + {defCoefficient})
+             </div>
+             
+             <div style={{ fontSize: '0.75rem', color: 'var(--zzz-cyan)' }}>
+                {t('effective_def')}: {Math.round(effectiveDef)} ({t('dmg_reduction')} {(100 - defMult*100).toFixed(1)}%)
+             </div>
+          </div>
+
           <BreakdownRow 
-            label="失衡区 (Stun)" 
+            label={lang === 'cn' ? '失衡区' : 'Stun Mult'}
             value={formatVal(stunMult)} 
             formula={enemy.stunned ? `Stunned (x${formatPct(stunMult)})` : 'Active (100%)'} 
           />
 
-          {/* Set Bonuses Row */}
-          {result.activeSetBonuses && result.activeSetBonuses.length > 0 && (
+          {/* Set Bonuses Row: Hidden in Raw Mode */}
+          {!isRaw && result.activeSetBonuses && result.activeSetBonuses.length > 0 && (
               <div style={{ 
                 background: 'var(--zzz-dark-grey)', padding: '10px', 
                 borderLeft: '4px solid var(--zzz-cyan)', marginBottom: '8px' 
               }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontWeight: 'bold', color: 'var(--zzz-cyan)', fontSize: '0.9rem' }}>{t('set_bonuses')} / CONFIG</span>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--zzz-white)', marginTop: '4px' }}>
-                    {result.activeSetBonuses.join(' + ')}
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', marginTop: '4px', gap: '4px' }}>
+                    {/* Localization and Splitting */}
+                    {result.activeSetBonuses.map((bonus, idx) => (
+                        <span key={idx} style={{ fontSize: '0.8rem', color: 'var(--zzz-white)' }}>
+                             • {localizeBonusString(bonus)}
+                        </span>
+                    ))}
+                  </div>
                   {isTheoretical && (
                     <span style={{ fontSize: '0.7rem', color: 'var(--zzz-light-grey)', marginTop: '2px' }}>
                         * {t('main_stat_fixed')} & {t('main_stat_selected')}
@@ -149,27 +205,10 @@ export const FormulaModal: React.FC<FormulaModalProps> = ({ visible, onClose, re
               </div>
           )}
 
-          {/* Special Defense Row */}
-          <div style={{ background: 'var(--zzz-dark-grey)', padding: '12px', border: '1px solid var(--zzz-border)' }}>
-             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontWeight: 'bold', color: 'var(--zzz-yellow)' }}>防御区 (DEF)</span>
-                <span style={{ fontWeight: 'bold', color: 'var(--zzz-white)' }}>{formatVal(defMult)}</span>
-             </div>
-             <div style={{ fontSize: '0.75rem', color: 'var(--zzz-light-grey)', marginBottom: '4px' }}>
-                公式: {defCoefficient} / (防御 * (1-穿透) * (1-减防) - 固定穿透 + {defCoefficient})
-             </div>
-             <div style={{ fontSize: '0.8rem', color: 'var(--zzz-white)', fontFamily: 'monospace' }}>
-                {defCoefficient} / ({enemy.def} * (1 - {stats.penRatio.toFixed(1)}%) * (1 - {(stats.defReduction || 0).toFixed(1)}%) - {stats.penFlat} + {defCoefficient})
-             </div>
-             <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--zzz-cyan)' }}>
-                有效防御: {Math.round(effectiveDef)} (减伤 {(100 - defMult*100).toFixed(1)}%)
-             </div>
-          </div>
-
         </div>
 
         <div style={{ marginTop: '24px', textAlign: 'right' }}>
-          <ZZZButton onClick={onClose} block>CLOSE REPORT</ZZZButton>
+          <ZZZButton onClick={onClose} block>关闭报告</ZZZButton>
         </div>
 
       </div>

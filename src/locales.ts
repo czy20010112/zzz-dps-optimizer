@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type Language = 'en' | 'cn';
@@ -50,6 +49,7 @@ export const translations: Translations = {
     'stat_atkFlat': 'ATK (Flat)',
     'stat_atk_': 'ATK %',
     'stat_atkPercent': 'ATK %',
+    'stat_atk_clean': 'ATK', // New clean label
     'stat_def': 'DEF (Flat)',
     'stat_def_': 'DEF %',
     'stat_hp': 'HP (Flat)',
@@ -97,7 +97,8 @@ export const translations: Translations = {
     'add_disk': 'Add Disc',
     'cancel': 'Cancel',
     'confirm': 'Confirm',
-    'parse': 'Parse & Load',
+    'parse': 'Parse&Load',
+    'select_file': 'Select File',
     'add_custom': '+ Custom',
     'initiate_sim': 'INITIATE SIMULATION',
     'view_edit': 'VIEW / EDIT',
@@ -108,57 +109,68 @@ export const translations: Translations = {
     'mode_raw': 'Raw / Direct',
     
     // Results
-    'max_dps': 'THEORETICAL MAX DPS',
+    'max_dps': 'THEORETICAL MAX DAMAGE',
     'effective_stats': 'EFFECTIVE STATS',
     'config': 'CONFIG',
     'skill_mult': 'Skill Multiplier',
     'rank': 'RANK',
-    'damage': 'DAMAGE',
+    'damage': 'EXPECTED DAMAGE',
     'build': 'BUILD',
+    
+    // System Status
+    'system_status_label': 'SYSTEM STATUS',
+    'processing': 'PROCESSING...',
+    'ready': 'READY',
+
+    // Config
+    'def_reduction': 'Def Shred + Ignore Def %',
+    'res_reduction': 'Res Shred + Ignore Res %',
+
+    // Intro
+    'intro_clickable_note': 'Calculation result numbers are clickable to view detailed Formula and Build breakdowns.',
   },
   cn: {
     // Labels
-    'agent': '代理人 (Agent)',
-    'w_engine': '音擎 (W-Engine)',
-    'base_atk': '基础攻击 (Base ATK)',
-    'flat_atk': '小攻击 (Flat ATK)',
-    'atk_percent': '攻击力 %',
-    'dmg_bonus': '伤害加成 %',
-    'crit_rate': '暴击率 %',
-    'crit_dmg': '暴击伤害 %',
-    'pen_flat': '穿透值 (Flat)',
-    'pen_ratio': '穿透率 %',
+    'agent': '代理人',
+    'w_engine': '音擎',
+    'base_atk': '基础攻击',
+    'flat_atk': '固定攻击',
+    'atk_percent': '攻击力百分比',
+    'dmg_bonus': '属性伤害加成（增伤也在这）',
+    'crit_rate': '暴击率',
+    'crit_dmg': '暴击伤害',
+    'pen_flat': '固定穿透',
+    'pen_ratio': '穿透率',
     'enemy_level': '敌人等级',
     'enemy_def': '敌人防御',
-    'resistance': '属性抗性 %',
-    'target_stunned': '处于失衡状态',
-    'stun_mult': '失衡倍率 %',
-    'substat_budget': '副词条预算 (词条数)',
+    'resistance': '敌人抗性',
+    'target_stunned': '击破状态',
+    'stun_mult': '击破易伤倍率',
+    'substat_budget': '副词条数量限制',
 
-    // New Keys Task 2
     'set_bonuses': '套装效果',
-    'slot_4': 'IV (4号位)',
-    'slot_5': 'V (5号位)',
-    'slot_6': 'VI (6号位)',
+    'slot_4': '4号位',
+    'slot_5': '5号位',
+    'slot_6': '6号位',
     'main_stat_fixed': '已包含固定主属性 (1-3号位)',
-    'main_stat_selected': '自选主属性 (4-6号位)',
-    'incl_slot_2': '包含 2号位 + 自选主词条',
+    'main_stat_selected': '所选主属性 (4-6号位)',
+    'incl_slot_2': '包含2号位固定攻击',
 
-    // Raw Mode Labels
-    'final_atk': '最终攻击力 (Final ATK)',
-    'final_crit_rate': '最终暴击率 %',
-    'final_crit_dmg': '最终暴击伤害 %',
-    'final_pen': '最终穿透值 (Flat)',
-    'panel_stats': '面板数据 // PANEL STATS',
+    'final_atk': '最终攻击力 (面板)',
+    'final_crit_rate': '最终暴击率 (面板)',
+    'final_crit_dmg': '最终暴击伤害 (面板)',
+    'final_pen': '最终固定穿透 (面板)',
+    'panel_stats': '最终面板',
 
     // Stats
-    'stat_atk': '固定攻击',
-    'stat_atkFlat': '固定攻击',
+    'stat_atk': '小攻击',
+    'stat_atkFlat': '小攻击',
     'stat_atk_': '攻击力 %',
-    'stat_atkPercent': '攻击力 %',
-    'stat_def': '固定防御',
+    'stat_atkPercent': '攻击力 （%）',
+    'stat_atk_clean': '攻击力', // Clean label
+    'stat_def': '防御力',
     'stat_def_': '防御力 %',
-    'stat_hp': '固定生命',
+    'stat_hp': '生命值',
     'stat_hp_': '生命值 %',
     'stat_critRate': '暴击率',
     'stat_critDmg': '暴击伤害',
@@ -172,15 +184,15 @@ export const translations: Translations = {
     'stat_mastery': '异常精通',
     'stat_anomalyMastery': '异常精通',
     'stat_energy': '能量自动回复',
-    'stat_anomaly': '异常精通',
-    'stat_anomalyProficiency': '异常精通',
+    'stat_anomaly': '异常掌控',
+    'stat_anomalyProficiency': '异常掌控',
     'stat_resReduction': '抗性降低',
-    'stat_defReduction': '防御降低',
+    'stat_defReduction': '减防/无视防御',
 
     // Titles
-    'agent_specs': '代理人规格 // 改装工坊',
-    'target_analysis': '目标分析 // 战斗环境',
-    'disk_storage': '驱动盘库存 // STORAGE',
+    'agent_specs': '代理人配置',
+    'target_analysis': '敌人数据',
+    'disk_storage': '驱动盘仓库',
     'manual_input': '手动录入',
     'import_json': '导入 JSON',
     'custom_data': '自定义数据',
@@ -188,70 +200,73 @@ export const translations: Translations = {
     'set_name': '套装名称',
     '2pc_effect': '2件套效果',
     '4pc_effect': '4件套效果',
-    'add_stat': '添加属性',
+    'add_stat': '添加词条',
     'save_data': '保存数据',
-    'template_mode': '模板模式：保存将创建新的自定义条目',
-    'formula_desc': '伤害 = 攻击区 × 倍率区 × 双暴区 × 增伤区 × 防御区 × 抗性区 × 失衡区',
+    'template_mode': '模板模式：保存将创建新条目。',
+    'formula_desc': '最终伤害 = 攻击区 x 倍率区 x 双暴区 x 增伤区 x 防御区 x 抗性区 x 失衡区',
     'effective_def': '有效防御',
-    'dmg_reduction': '减伤',
-    'formula_equation': '系数 / (防御 * (1-穿透) * (1-减防) - 固定穿透 + 系数)',
+    'dmg_reduction': '减伤率',
+    'formula_equation': '系数 / (防御 * (1-穿透率) * (1-减防) - 固定穿透 + 系数)',
 
     // Buttons
-    'import': '导入数据',
-    'export': '导出数据',
-    'purge': '清空库存',
+    'import': '导入 JSON',
+    'export': '导出 JSON',
+    'purge': '清空所有',
     'add_disk': '添加驱动盘',
     'cancel': '取消',
     'confirm': '确认',
     'parse': '解析并加载',
+    'select_file': '选择文件',
     'add_custom': '+ 自定义',
-    'initiate_sim': '开始代理',
+    'initiate_sim': '开始计算',
     'view_edit': '查看 / 编辑',
 
     // Modes
     'mode_theoretical': '理论计算',
     'mode_inventory': '库存模拟',
     'mode_raw': '直伤计算',
-    
+
     // Results
-    'max_dps': '理论最高期望 (MAX DPS)',
-    'effective_stats': '最终面板',
+    'max_dps': '理论最高期望伤害',
+    'effective_stats': '生效属性',
     'config': '配置详情',
     'skill_mult': '技能倍率',
     'rank': '排名',
     'damage': '期望伤害',
-    'build': '配装方案',
+    'build': '配装',
+
+    // System Status
+    'system_status_label': '系统状态',
+    'processing': '计算中...',
+    'ready': '就绪',
+
+    // Config
+    'def_reduction': '防御降低+无视防御 %',
+    'res_reduction': '抗性降低+无视抗性 %',
+
+    // Intro
+    'intro_clickable_note': '计算结果数字可点击，以查看详细的伤害乘区和配装详情。',
   }
 };
 
-// --- Context ---
-
-interface LanguageContextType {
-  lang: Language;
-  toggleLang: () => void;
-  t: (key: string) => string;
-}
-
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LanguageContext = createContext<any>(null);
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [lang, setLang] = useState<Language>('cn'); 
+  const [lang, setLang] = useState<Language>('cn'); // Set default to 'cn'
 
   const toggleLang = () => {
-    setLang(prev => prev === 'en' ? 'cn' : 'en');
+    setLang(prev => (prev === 'en' ? 'cn' : 'en'));
   };
 
   const t = (key: string) => {
     return translations[lang][key] || key;
   };
 
-  return React.createElement(LanguageContext.Provider, { value: { lang, toggleLang, t } }, children);
+  return React.createElement(
+    LanguageContext.Provider,
+    { value: { lang, toggleLang, t } },
+    children
+  );
 };
 
-export const useLanguage = () => {
-  const context = useContext(LanguageContext);
-  if (!context) {
-    throw new Error('useLanguage must be used within a LanguageProvider');
-  }
-  return context;
-};
+export const useLanguage = () => useContext(LanguageContext);

@@ -1,3 +1,4 @@
+
 import { BaseStats, DiscItem, EnemyStats, OptimizationResult, BuildResult, TheoreticalConfig } from '../types';
 import { DISC_SETS } from '../data/disc_sets';
 import { addStat, applyItemStats, applySetBonuses, MAIN_STAT_VALUES } from '../utils/statCalculator';
@@ -44,7 +45,8 @@ const generateCompactComboName = (combo: DiscItem[]): string => {
   const parts: string[] = [];
   
   Object.entries(setCounts).forEach(([setId, count]) => {
-    const setDef = DISC_SETS.find(s => s.id === setId);
+    // Task 2: Ensure ID lookup is robust if Name is used accidentally
+    const setDef = DISC_SETS.find(s => s.id === setId || s.name.en === setId);
     const displayName = setDef ? setDef.name.en : setId; 
 
     if (count >= 4) {
@@ -65,11 +67,27 @@ export const runTheoreticalOptimizer = (
 ): OptimizationResult => {
   const actualBudget = budget > 0 ? budget : 45;
   const isZeroBudget = budget === 0;
+  // Task 1: Detect Raw Mode
+  const isRaw = config?.isRaw === true;
 
   console.log(`Optimizer: Running Theoretical`, { budget: actualBudget, config });
   
+  // Task 1: If Raw Mode, skip ALL default main stat additions and set optimizations
+  if (isRaw) {
+     const usedSkillMult = baseStats.skillMultiplier ? (baseStats.skillMultiplier / 100) : 25.0;
+     const damage = calculateDamage(baseStats, enemy);
+     return {
+        dps: damage,
+        stats: baseStats,
+        skillMultiplier: usedSkillMult,
+        activeSetBonuses: ['Direct Raw Calculation'],
+        description: 'Direct Calculation'
+     };
+  }
+
   const statsWithMains = { ...baseStats };
 
+  // Only add default 1-2-3 stats if NOT Raw mode (already handled by early return, but kept explicitly safe)
   addStat(statsWithMains, 'hp', MAIN_STAT_VALUES['hp']);
   addStat(statsWithMains, 'atk', MAIN_STAT_VALUES['atk']);
   addStat(statsWithMains, 'def', MAIN_STAT_VALUES['def']);
@@ -117,6 +135,7 @@ export const runTheoreticalOptimizer = (
         }
     }
   } else {
+    // If Zero Budget but NOT Raw (rare case of "Base Stats Only" theoretical), we calculate as is
     bestStats = { ...statsWithMains };
     bestSetDps = calculateDamage(bestStats, enemy);
   }
@@ -128,9 +147,12 @@ export const runTheoreticalOptimizer = (
     stats: bestStats,
     skillMultiplier: usedSkillMult,
     activeSetBonuses: isZeroBudget 
-        ? ['Manual Panel (Raw)'] 
+        ? ['No Substats Added'] 
         : [`Theoretical (+${actualBudget} Rolls)`, bestComboName],
-    description: isZeroBudget ? `Direct Calculation` : `Theoretical Max`
+    // Updated Description Format
+    description: isZeroBudget 
+        ? `Base Calculation` 
+        : `Theoretical Substats (${actualBudget} Rolls) / ${bestComboName}`
   };
 };
 
@@ -183,8 +205,6 @@ export const runInventoryOptimizer = (baseStats: BaseStats, enemy: EnemyStats, i
   const TOP_K = 100;
   let topBuilds: { dps: number; combo: DiscItem[]; stats: BaseStats; activeBonuses: string[] }[] = [];
   
-  // Use a dense array approach with push/pop to prevent sparse array bugs
-  // This ensures index 0 (Slot 1) is correctly iterated and not skipped.
   const currentCombo: DiscItem[] = [];
 
   const backtrack = (slotIndex: number) => {
@@ -227,7 +247,6 @@ export const runInventoryOptimizer = (baseStats: BaseStats, enemy: EnemyStats, i
     return {
       rank: idx + 1,
       dps: b.dps,
-      // Use the compact name generator for the display label
       comboName: generateCompactComboName(b.combo),
       stats: b.stats,
       combo: b.combo

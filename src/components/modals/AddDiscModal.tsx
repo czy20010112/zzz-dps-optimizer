@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ZZZButton } from '../ui/ZZZButton';
 import { ZZZSelect } from '../ui/ZZZSelect';
@@ -8,7 +9,10 @@ import { DISC_SETS } from '../../data';
 interface AddDiscModalProps {
   onClose: () => void;
   onConfirm: (item: DiscItem) => void;
-  customSets?: any[]; // Allow custom sets
+  // Task 3: Edit/Delete Support
+  initialItem?: DiscItem; 
+  onDelete?: (id: string) => void;
+  customSets?: any[]; 
 }
 
 // ZZZ Standard Substat Increment Values
@@ -26,27 +30,46 @@ const STEP_VALUES: Record<string, number> = {
   'impact': 6,
 };
 
-export const AddDiscModal: React.FC<AddDiscModalProps> = ({ onClose, onConfirm, customSets = [] }) => {
+export const AddDiscModal: React.FC<AddDiscModalProps> = ({ onClose, onConfirm, customSets = [], initialItem, onDelete }) => {
   const { t, lang } = useLanguage();
   
-  const [slot, setSlot] = useState(1);
-  const [set, setSet] = useState('Woodpecker');
-  const [mainStat, setMainStat] = useState<StatType>('hp');
-  const [subStats, setSubStats] = useState<{stat: StatType, value: string}[]>([
-    { stat: 'atk_', value: '' },
-    { stat: 'critRate', value: '' },
-    { stat: 'critDmg', value: '' },
-    { stat: 'pen', value: '' },
-  ]);
+  // Initialize with initialItem or defaults
+  const [slot, setSlot] = useState(initialItem?.slot || 1);
+  const [set, setSet] = useState(initialItem?.set || 'Woodpecker');
+  const [mainStat, setMainStat] = useState<StatType>(initialItem?.mainStat || 'hp');
+  
+  // Task 2: Fix Substat Initialization (Always Show 4 Slots)
+  const [subStats, setSubStats] = useState<{stat: StatType, value: string}[]>(() => {
+    if (initialItem?.subStats) {
+        // Map existing stats
+        const existing = initialItem.subStats.map(s => ({ stat: s.stat, value: String(s.value) }));
+        // Pad with empty stats until length is 4
+        while (existing.length < 4) {
+            existing.push({ stat: 'atk_', value: '' });
+        }
+        return existing;
+    }
+    // Default empty state
+    return [
+        { stat: 'atk_', value: '' },
+        { stat: 'critRate', value: '' },
+        { stat: 'critDmg', value: '' },
+        { stat: 'pen', value: '' },
+    ];
+  });
 
-  // Task 2: Update Main Stat when Slot changes
+  // Task 2: Update Main Stat when Slot changes, but only if not editing (or if user changes slot manually)
   useEffect(() => {
-    if (slot === 1) setMainStat('hp');
-    else if (slot === 2) setMainStat('atk');
-    else if (slot === 3) setMainStat('def');
-    else if (slot === 4) setMainStat('critRate');
-    else if (slot === 5) setMainStat('elemental');
-    else if (slot === 6) setMainStat('atk_');
+    // Logic: If current main stat is invalid for new slot, reset it.
+    const validKeys = getMainStatKeys(slot);
+    if (!validKeys.includes(mainStat)) {
+        if (slot === 1) setMainStat('hp');
+        else if (slot === 2) setMainStat('atk');
+        else if (slot === 3) setMainStat('def');
+        else if (slot === 4) setMainStat('critRate');
+        else if (slot === 5) setMainStat('elemental');
+        else if (slot === 6) setMainStat('atk_');
+    }
   }, [slot]);
 
   // Localized Labels
@@ -66,33 +89,32 @@ export const AddDiscModal: React.FC<AddDiscModalProps> = ({ onClose, onConfirm, 
       'impact': lang === 'cn' ? '冲击力' : 'Impact',
       'mastery': lang === 'cn' ? '异常精通' : 'Mastery',
       'energy': lang === 'cn' ? '能量自动回复' : 'Energy Regen',
-      'anomaly': lang === 'cn' ? '异常精通' : 'Anomaly Prof', // Usually 'anomaly' in data types means Prof
+      'anomaly': lang === 'cn' ? '异常精通' : 'Anomaly Prof', 
     };
     return map[key] || key;
   };
 
-  // Full list for Substats
   const allStats = [
     'atk', 'atk_', 'critRate', 'critDmg', 'pen', 'pen_', 
     'elemental', 'hp', 'hp_', 'def', 'def_', 'impact', 'mastery'
   ];
 
-  // Task 2: Filter Main Stats based on Slot
-  const getMainStatOptions = () => {
-    let validKeys: string[] = [];
-    if (slot === 1) validKeys = ['hp'];
-    else if (slot === 2) validKeys = ['atk'];
-    else if (slot === 3) validKeys = ['def'];
-    else if (slot === 4) validKeys = ['critRate', 'critDmg', 'atk_', 'anomaly', 'def_', 'hp_'];
-    else if (slot === 5) validKeys = ['elemental', 'pen_', 'atk_', 'def_', 'hp_'];
-    else if (slot === 6) validKeys = ['atk_', 'impact', 'mastery', 'energy', 'def_', 'hp_'];
+  const getMainStatKeys = (s: number) => {
+    if (s === 1) return ['hp'];
+    if (s === 2) return ['atk'];
+    if (s === 3) return ['def'];
+    if (s === 4) return ['critRate', 'critDmg', 'atk_', 'anomaly', 'def_', 'hp_'];
+    if (s === 5) return ['elemental', 'pen_', 'atk_', 'def_', 'hp_'];
+    if (s === 6) return ['atk_', 'impact', 'mastery', 'energy', 'def_', 'hp_'];
+    return [];
+  };
 
-    return validKeys.map(k => ({ label: getLabel(k), value: k }));
+  const getMainStatOptions = () => {
+    return getMainStatKeys(slot).map(k => ({ label: getLabel(k), value: k }));
   };
 
   const handleSlotChange = (newSlot: number) => {
     setSlot(newSlot);
-    // Main stat update is handled by useEffect
   };
 
   const handleConfirm = () => {
@@ -101,24 +123,52 @@ export const AddDiscModal: React.FC<AddDiscModalProps> = ({ onClose, onConfirm, 
       .map(s => ({ stat: s.stat, value: parseFloat(s.value) || 0 }));
     
     onConfirm({
-      id: crypto.randomUUID(),
+      id: initialItem ? initialItem.id : crypto.randomUUID(), // Preserve ID if editing
       slot,
-      set,
+      set, // Task 2: This is now guaranteed to be ID from select
       mainStat,
       subStats: validSubs
     });
   };
 
+  // Task 1: Fix Delete Functionality
+  const handleDelete = () => {
+      if (initialItem && onDelete) {
+          // Add a simple confirmation to prevent accidents
+          if (window.confirm('WARNING: Deleting this disc cannot be undone. Proceed?')) {
+              onDelete(initialItem.id);
+              // Note: We do NOT need to call onClose() here because onDelete in InventoryManager
+              // already sets showAddModal to false. Calling it again is redundant but harmless.
+          }
+      }
+  };
+
+  // Task 2: Fix Set ID binding.
   const setOptions = [
     ...DISC_SETS.map(s => ({ label: s.name[lang], value: s.id })),
-    ...customSets.map(s => ({ label: `${s.name} (*)`, value: s.name }))
+    ...customSets.map(s => ({ label: `${s.name} (*)`, value: s.id }))
   ];
 
   return (
     <div style={modalOverlayStyle}>
       <div style={modalContentStyle}>
-        <div style={{ borderBottom: '2px solid var(--zzz-yellow)', marginBottom: '16px', paddingBottom: '8px' }}>
-          <h3 style={{ margin: 0, color: 'var(--zzz-white)', textTransform: 'uppercase' }}>{t('add_disk')}</h3>
+        <div style={{ borderBottom: '2px solid var(--zzz-yellow)', marginBottom: '16px', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+          <h3 style={{ margin: 0, color: 'var(--zzz-white)', textTransform: 'uppercase' }}>
+              {initialItem ? 'EDIT DISC' : t('add_disk')}
+          </h3>
+          {/* Task 1: Delete Button Visibility Check */}
+          {initialItem && onDelete && (
+              <button 
+                onClick={handleDelete}
+                style={{ 
+                    background: 'transparent', border: '1px solid var(--zzz-red)', 
+                    color: 'var(--zzz-red)', fontWeight: 'bold', cursor: 'pointer',
+                    padding: '2px 8px', fontSize: '0.75rem', textTransform: 'uppercase'
+                }}
+              >
+                  DELETE [X]
+              </button>
+          )}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px', marginBottom: '16px' }}>

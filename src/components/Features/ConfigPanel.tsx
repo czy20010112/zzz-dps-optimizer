@@ -221,7 +221,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                     style={{ borderColor: 'var(--zzz-yellow)' }} 
                 />
                 <ZZZInput 
-                    label="技能倍率 % (Skill MV)" 
+                    label="技能倍率 %" 
                     type="number" 
                     value={skillMultiplier} 
                     onChange={e => setSkillMultiplier(parseFloat(e.target.value) || 0)} 
@@ -234,8 +234,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 <ZZZInput label={t('dmg_bonus')} type="number" value={stats.dmgBonus} onChange={e => handleStatChange('dmgBonus', e.target.value)} />
                 <ZZZInput label={t('pen_ratio')} type="number" value={stats.penRatio} onChange={e => handleStatChange('penRatio', e.target.value)} />
                 <ZZZInput label={t('final_pen')} type="number" value={stats.penFlat} onChange={e => handleStatChange('penFlat', e.target.value)} />
-                <ZZZInput label="减防/无视防御 %" type="number" value={stats.defReduction || 0} onChange={e => handleStatChange('defReduction', e.target.value)} />
-                <ZZZInput label="抗性降低 %" type="number" value={stats.resReduction || 0} onChange={e => handleStatChange('resReduction', e.target.value)} />
+                <ZZZInput label={t('def_reduction')} type="number" value={stats.defReduction || 0} onChange={e => handleStatChange('defReduction', e.target.value)} />
+                <ZZZInput label={t('res_reduction')} type="number" value={stats.resReduction || 0} onChange={e => handleStatChange('resReduction', e.target.value)} />
               </>
           ) : (
               <>
@@ -247,8 +247,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 <ZZZInput label={t('crit_dmg')} type="number" value={stats.critDmg} onChange={e => handleStatChange('critDmg', e.target.value)} style={{ borderColor: 'var(--zzz-red)' }} />
                 <ZZZInput label={t('pen_flat')} type="number" value={stats.penFlat} onChange={e => handleStatChange('penFlat', e.target.value)} />
                 <ZZZInput label={t('pen_ratio')} type="number" value={stats.penRatio} onChange={e => handleStatChange('penRatio', e.target.value)} />
-                <ZZZInput label="减防/无视防御 %" type="number" value={stats.defReduction || 0} onChange={e => handleStatChange('defReduction', e.target.value)} />
-                <ZZZInput label="抗性降低 %" type="number" value={stats.resReduction || 0} onChange={e => handleStatChange('resReduction', e.target.value)} />
+                <ZZZInput label={t('def_reduction')} type="number" value={stats.defReduction || 0} onChange={e => handleStatChange('defReduction', e.target.value)} />
+                <ZZZInput label={t('res_reduction')} type="number" value={stats.resReduction || 0} onChange={e => handleStatChange('resReduction', e.target.value)} />
               </>
           )}
         </div>

@@ -106,6 +106,7 @@ export const applySetBonuses = (
 
     // Count equipped sets
     items.forEach(i => {
+        // Task 2: Robust ID matching (ID preferred)
         if (i && i.set) setCounts[i.set] = (setCounts[i.set] || 0) + 1;
     });
 
@@ -181,7 +182,8 @@ export const calculateFinalStats = (
       energy: 100,
     };
 
-    // If RAW mode, we ignore Agent/Engine base stats and assume inputs are total stats.
+    // Task 1: If RAW mode, we ignore Agent/Engine base stats and assume inputs are total stats.
+    // Crucial: Early return ensures NO automatic item/set application happens here.
     if (isRawMode) {
         if (manualBuffs) {
             Object.entries(manualBuffs).forEach(([k, v]) => {

@@ -5,6 +5,7 @@ import { OptimizationResult, EnemyStats, BuildResult } from '../../types';
 import { useLanguage } from '../../locales';
 import { FormulaModal } from '../modals/FormulaModal';
 import { BuildDetailsModal } from '../modals/BuildDetailsModal'; // Imported
+import { DISC_SETS } from '../../data';
 
 interface ResultDashboardProps {
   theoretical: OptimizationResult | null;
@@ -34,11 +35,40 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({ theoretical, i
     }
   };
 
-  // Localized Labels
-  const LABELS = {
-    topBuilds: lang === 'cn' ? '配装方案排名 (TOP 100)' : 'TOP 100 BUILDS',
-    processing: lang === 'cn' ? '计算中...' : 'PROCESSING...',
-    ready: lang === 'cn' ? '就绪' : 'READY',
+  // Helper: Localize "Best Build (Skill MV: ...)"
+  const localizeDescription = (desc?: string) => {
+    if (!desc) return '';
+    if (lang === 'en') return desc;
+    // Format: "Best Build (Skill MV: 2500%)"
+    if (desc.startsWith('Best Build')) {
+        return desc.replace('Best Build', '最佳套装').replace('Skill MV:', '倍率:');
+    }
+    return desc;
+  };
+
+  // Helper: Format Combo Name (Split lines + Localize)
+  // Input: "Woodpecker(4) + Hormone(2)" or "Woodpecker(4)"
+  const formatComboName = (comboName: string) => {
+      const parts = comboName.split('+').map(s => s.trim());
+      
+      return parts.map((part, idx) => {
+          // Parse "SetName(Count)"
+          const match = part.match(/^(.*)\((\d)\)$/);
+          let displayName = part;
+          if (match) {
+              const [, nameEn, count] = match;
+              // Find set by EN name (worker outputs EN)
+              const setDef = DISC_SETS.find(s => s.name.en === nameEn || s.id === nameEn);
+              const localName = setDef ? setDef.name[lang] : nameEn;
+              displayName = `${localName} (${count})`;
+          }
+
+          return (
+              <div key={idx} style={{ lineHeight: '1.2' }}>
+                  {displayName}
+              </div>
+          );
+      });
   };
 
   return (
@@ -49,12 +79,13 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({ theoretical, i
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '12px', border: '1px solid var(--zzz-border)', background: 'var(--zzz-black)'
       }}>
-        <span style={{ color: 'var(--zzz-light-grey)', fontSize: '0.8rem' }}>SYSTEM_STATUS</span>
+        {/* Use localized Status Title */}
+        <span style={{ color: 'var(--zzz-light-grey)', fontSize: '0.8rem' }}>{t('system_status_label')}</span>
         <span style={{ 
           color: isCalculating ? 'var(--zzz-yellow)' : 'var(--zzz-cyan)', 
           fontWeight: 'bold', animation: isCalculating ? 'glitch-anim-1 1s infinite' : 'none'
         }}>
-          {isCalculating ? LABELS.processing : LABELS.ready}
+          {isCalculating ? t('processing') : t('ready')}
         </span>
       </div>
 
@@ -84,10 +115,10 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({ theoretical, i
                 <div>
                     <div style={{color:'#CCC', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '4px'}}>{t('effective_stats')}</div>
                     <div style={{fontWeight: 'bold', color: 'var(--zzz-white)', marginBottom: '4px'}}>
-                      ATK: <span style={{color: 'var(--zzz-cyan)'}}>{Math.round(theoretical.stats.atkBase * (1 + theoretical.stats.atkPercent/100) + theoretical.stats.atkFlat)}</span>
+                      {t('stat_atk_clean')}: <span style={{color: 'var(--zzz-cyan)'}}>{Math.round(theoretical.stats.atkBase * (1 + theoretical.stats.atkPercent/100) + theoretical.stats.atkFlat)}</span>
                     </div>
                     <div style={{fontWeight: 'bold', color: 'var(--zzz-white)'}}>
-                      CRIT: <span style={{color: 'var(--zzz-red)'}}>{theoretical.stats.critRate.toFixed(1)}%</span> / <span style={{color: 'var(--zzz-red)'}}>{theoretical.stats.critDmg.toFixed(1)}%</span>
+                      {t('stat_critRate')}: <span style={{color: 'var(--zzz-red)'}}>{theoretical.stats.critRate.toFixed(1)}%</span> / <span style={{color: 'var(--zzz-red)'}}>{theoretical.stats.critDmg.toFixed(1)}%</span>
                     </div>
                 </div>
                 <div>
@@ -116,13 +147,13 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({ theoretical, i
               </span>
             </div>
             <div style={{ fontSize: '0.9rem', color: '#CCC', marginBottom: '24px' }}>
-              {inventoryResult.description}
+              {localizeDescription(inventoryResult.description)}
             </div>
 
             {/* Top 100 List */}
             {inventoryResult.topBuilds && inventoryResult.topBuilds.length > 0 && (
               <div style={{ borderTop: '1px dashed var(--zzz-grey)', paddingTop: '16px' }}>
-                <h4 style={{ margin: '0 0 12px 0', color: 'var(--zzz-white)' }}>{LABELS.topBuilds}</h4>
+                <h4 style={{ margin: '0 0 12px 0', color: 'var(--zzz-white)' }}>{lang === 'cn' ? '配装方案排名 (TOP 100)' : 'TOP 100 BUILDS'}</h4>
                 <div style={{ 
                     display: 'flex', flexDirection: 'column', gap: '8px', 
                     maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' 
@@ -152,11 +183,17 @@ export const ResultDashboard: React.FC<ResultDashboardProps> = ({ theoretical, i
                             color: 'var(--zzz-black)', fontWeight: 'bold',
                             whiteSpace: 'nowrap', overflow: 'hidden'
                           }}>
-                            {Math.round(build.dps).toLocaleString()}
+                            {/* Format: VAL only (Raw Integer) */}
+                            {Math.round(build.dps)}
                           </div>
                         </div>
-                        <div style={{ color: 'var(--zzz-white)', width: '180px', textAlign: 'right', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {build.comboName}
+                        {/* Task 2: Multi-line Localized Set Name */}
+                        <div style={{ 
+                            color: 'var(--zzz-white)', width: '180px', textAlign: 'right', 
+                            fontSize: '0.75rem', overflow: 'hidden', 
+                            whiteSpace: 'normal' // Allow wrap/stack
+                        }}>
+                          {formatComboName(build.comboName)}
                         </div>
                       </div>
                     );
